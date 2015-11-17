@@ -4,9 +4,10 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
-import android.media.MediaScannerConnection;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffColorFilter;
+import android.graphics.RectF;
 import android.net.Uri;
-import android.os.Environment;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
@@ -20,8 +21,6 @@ import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
-import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.io.Writer;
@@ -63,11 +62,9 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
             materialHeight = material.getDocumentViewBox().bottom;
 
             geometry = SVG.getFromAsset(getContext().getAssets(), "shape20cm.svg");
-//            geometry.setDocumentPreserveAspectRatio(new PreserveAspectRatio(PreserveAspectRatio.Alignment.XMidYMid, PreserveAspectRatio.Scale.Meet));
-//            Log.i(TAG, "DrawingView: " + geometry.getDocumentPreserveAspectRatio().getAlignment().toString() + " " + geometry.getDocumentPreserveAspectRatio().getScale().toString());
-            geometry.setDocumentViewBox(geometry.getDocumentViewBox().left * scale, geometry.getDocumentViewBox().top * scale, geometry.getDocumentViewBox().right * scale, geometry.getDocumentViewBox().bottom * scale);
-            geometryWidth = geometry.getDocumentViewBox().right;
-            geometryHeight = geometry.getDocumentViewBox().bottom;
+//            geometry.setDocumentViewBox(geometry.getDocumentViewBox().left * scale, geometry.getDocumentViewBox().top * scale, geometry.getDocumentViewBox().right * scale, geometry.getDocumentViewBox().bottom * scale);
+            geometryWidth = geometry.getDocumentViewBox().right * scale;
+            geometryHeight = geometry.getDocumentViewBox().bottom * scale;
 
         } catch (SVGParseException | IOException e) {
             e.printStackTrace();
@@ -77,7 +74,7 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
         paint.setColor(Color.WHITE);
         paint.setStyle(Paint.Style.FILL);
 
-        surfaceHolder.addCallback(this);
+        surfaceHolder.addCallback(this); //SurfaceHolder callback (surfaceCreated, surfaceChanged, surfaceDestroyed)
 
         /*//Converting SVG contents to Android VectorDrawable XML
         String geometryXML = convertSVG("shape20cm.svg");
@@ -103,24 +100,46 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
         }
 
         Canvas canvas = surfaceHolder.lockCanvas();
+        canvas.drawColor(Color.WHITE); //Fill canvas with white
 
-        canvas.drawColor(Color.WHITE);
-
+        //Touch coordinates
         float x = event.getX();
         float y = event.getY();
 
         material.renderToCanvas(canvas, material.getDocumentViewBox());
 
+        //Save canvas settings
         canvas.save();
-        canvas.scale(-scale, -scale);
 
+        //Scale for relative size
+        canvas.scale(scale, scale);
+
+        //Set the viewbox to the touched position, divide by scale so it follows the touched position
         geometry.setDocumentViewBox(x / scale, y / scale, geometryWidth, geometryHeight);
+
+        //Apply color filter to the moving geometry
+        PorterDuffColorFilter cf = new PorterDuffColorFilter(Color.RED, PorterDuff.Mode.SRC_ATOP);
+        geometry.setColorFilter(cf);
+
+        //Render
         geometry.renderToCanvas(canvas, geometry.getDocumentViewBox());
 
+        //Restore canvas to the state saved above
         canvas.restore();
 
+        //Drawing viewBox, it needs to be offset because the coordinates change when scaling
+        RectF rect = offsetViewBox(geometry.getDocumentViewBox());
+        paint.setColor(Color.BLUE);
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeWidth(5);
+        canvas.drawRect(rect, paint);
 
-        if (event.getAction() == MotionEvent.ACTION_UP) {
+        Log.i(TAG, "onTouchEvent geometry: " + geometry.getDocumentViewBox().toString());
+        Log.i(TAG, "onTouchEvent rect    : " + rect.toString());
+
+
+
+        if (event.getAction() == MotionEvent.ACTION_UP) { //When user stops touching the screen
             Log.i(TAG, "onTouchEvent geometry width: " + geometryWidth + " geometry height: " + geometryHeight);
             Log.i(TAG, "onTouchEvent x: " + x + ", y: " + y);
             Log.i(TAG, "onTouchEvent: x+width: " + (geometryWidth+x) + " y+height: " + (geometryHeight+y));
@@ -129,43 +148,40 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
         }
 
 
-        //print contents of file
-        /*Log.i(TAG, "star path: " + geometryUri.getPath());
-        File file = new File(geometryUri.getPath());
-
-        try (BufferedReader br = new BufferedReader(new FileReader(file))) {
-            String line;
-            while ((line = br.readLine()) != null) {
-                Log.i(TAG, "onTouchEvent #: " + line);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }*/
-
-
-
         surfaceHolder.unlockCanvasAndPost(canvas);
 
         return true;
     }
 
+    private RectF offsetViewBox(RectF viewBox) {
+        viewBox.offsetTo(viewBox.left * scale, viewBox.top * scale);
+        return viewBox;
+    }
+
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
         Canvas canvas = surfaceHolder.lockCanvas();
-        canvas.drawColor(Color.WHITE);
-
+        canvas.drawColor(Color.WHITE); //Fill canvas with white
 
         Log.i(TAG, "surface created");
 
         material.renderToCanvas(canvas, material.getDocumentViewBox());
 //        geometry.renderToCanvas(canvas, geometry.getDocumentViewBox());
 
-        canvas.save();
-        canvas.scale(scale,scale);
-        canvas.rotate(180, canvas.getWidth()/2, canvas.getHeight()/2);
+        canvas.save(); //Save canvas settings
+//        canvas.scale(scale,scale); //Scale so the geometry has the same dimensions relative to material
+//        canvas.rotate(180, canvas.getWidth()/2, canvas.getHeight()/2); //Rotate canvas so the model is upside down and around the middle
 
+        RectF vb = geometry.getDocumentViewBox();
+        geometry.setDocumentViewBox(250, 250, vb.right, vb.bottom);
         geometry.renderToCanvas(canvas, geometry.getDocumentViewBox());
-        canvas.restore();
+
+        paint.setColor(Color.BLUE);
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeWidth(5);
+        canvas.drawRect(vb, paint);
+
+        canvas.restore(); //Restore canvas settings
 
         surfaceHolder.unlockCanvasAndPost(canvas);
     }

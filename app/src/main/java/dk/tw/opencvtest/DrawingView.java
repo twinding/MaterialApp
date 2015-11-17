@@ -4,38 +4,28 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
-import android.graphics.RectF;
-import android.graphics.drawable.ScaleDrawable;
-import android.graphics.drawable.VectorDrawable;
 import android.media.MediaScannerConnection;
 import android.net.Uri;
 import android.os.Environment;
 import android.util.Log;
-import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
-
 import com.caverock.androidsvg.SVG;
 import com.caverock.androidsvg.SVGParseException;
 
-import org.opencv.core.Point;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.io.Writer;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -55,15 +45,14 @@ import javax.xml.xpath.XPathFactory;
 public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
 
     private final String TAG = "DrawingView";
+    private final float scale = 0.78f;
+
     private final SurfaceHolder surfaceHolder;
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private SVG material, geometry;
     private Uri geometryUri;
-    float materialWidth, materialHeight;
+    float materialWidth, materialHeight, geometryWidth, geometryHeight;
 
-    private List<Point> pointList = new ArrayList<>();
-
-    SVG svg;
 
     public DrawingView(Context context) {
         super(context);
@@ -73,14 +62,13 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
             materialWidth = material.getDocumentViewBox().right;
             materialHeight = material.getDocumentViewBox().bottom;
 
+            geometry = SVG.getFromAsset(getContext().getAssets(), "shape20cm.svg");
+//            geometry.setDocumentPreserveAspectRatio(new PreserveAspectRatio(PreserveAspectRatio.Alignment.XMidYMid, PreserveAspectRatio.Scale.Meet));
+//            Log.i(TAG, "DrawingView: " + geometry.getDocumentPreserveAspectRatio().getAlignment().toString() + " " + geometry.getDocumentPreserveAspectRatio().getScale().toString());
+            geometry.setDocumentViewBox(geometry.getDocumentViewBox().left * scale, geometry.getDocumentViewBox().top * scale, geometry.getDocumentViewBox().right * scale, geometry.getDocumentViewBox().bottom * scale);
+            geometryWidth = geometry.getDocumentViewBox().right;
+            geometryHeight = geometry.getDocumentViewBox().bottom;
 
-            geometry = SVG.getFromAsset(getContext().getAssets(), "box2.svg");
-
-            Log.i(TAG, "DrawingView: Geometry width: " + geometry.getDocumentWidth() + ", height: " + geometry.getDocumentHeight() + ", viewBox: " + geometry.getDocumentViewBox());
-            RectF geometryViewBox = geometry.getDocumentViewBox();
-            geometry.setDocumentViewBox(geometryViewBox.left * 0.78f, geometryViewBox.top * 0.78f, geometryViewBox.right * 0.78f, geometryViewBox.bottom * 0.78f);
-
-            Log.i(TAG, "DrawingView: Geometry after resizing width: " + geometry.getDocumentWidth() + ", height: " + geometry.getDocumentHeight() + ", viewBox: " + geometry.getDocumentViewBox());
         } catch (SVGParseException | IOException e) {
             e.printStackTrace();
         }
@@ -88,24 +76,12 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
         surfaceHolder = getHolder();
         paint.setColor(Color.WHITE);
         paint.setStyle(Paint.Style.FILL);
-//        setBackgroundColor(Color.WHITE);
 
         surfaceHolder.addCallback(this);
 
+        /*//Converting SVG contents to Android VectorDrawable XML
         String geometryXML = convertSVG("shape20cm.svg");
-
-        //temp file
-/*        try {
-            File geometryFile = File.createTempFile("geometry", "xml");
-            geometryUri = Uri.fromFile(geometryFile);
-            BufferedWriter writer = new BufferedWriter(new FileWriter(geometryFile));
-            writer.write(geometryXML);
-            writer.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }*/
-
-        //permanent file
+        //Write to permanent file
         File file = new File(Environment.getExternalStorageDirectory().toString()+"/shape20cm.xml");
         geometryUri = Uri.fromFile(file);
         try {
@@ -115,7 +91,7 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
             MediaScannerConnection.scanFile(getContext(), new String[]{file.getAbsolutePath()}, null, null);
         } catch (IOException e) {
             e.printStackTrace();
-        }
+        }*/
     }
 
 
@@ -133,39 +109,27 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
         float x = event.getX();
         float y = event.getY();
 
-
-        material.setDocumentViewBox(-x, -y, -(materialWidth+x), -(materialHeight+y));
         material.renderToCanvas(canvas, material.getDocumentViewBox());
 
+        canvas.save();
+        canvas.scale(-scale, -scale);
 
-//        float right = material.getDocumentViewBox().right + x;
-//        float bottom = material.getDocumentViewBox().bottom + x;
+        geometry.setDocumentViewBox(x / scale, y / scale, geometryWidth, geometryHeight);
+        geometry.renderToCanvas(canvas, geometry.getDocumentViewBox());
 
-//        Log.i(TAG, "onTouchEvent rendering: " + x + ", " + y + ", " + right + ", " + bottom);
-
-//        material.renderToCanvas(canvas, new RectF(-x, -y, -right, -bottom));
-//        geometry.renderToCanvas(canvas/*, new RectF(x, y, x + geometry.getDocumentWidth(), y + geometry.getDocumentHeight())*/);
-
+        canvas.restore();
 
 
         if (event.getAction() == MotionEvent.ACTION_UP) {
+            Log.i(TAG, "onTouchEvent geometry width: " + geometryWidth + " geometry height: " + geometryHeight);
             Log.i(TAG, "onTouchEvent x: " + x + ", y: " + y);
+            Log.i(TAG, "onTouchEvent: x+width: " + (geometryWidth+x) + " y+height: " + (geometryHeight+y));
             Log.i(TAG, "onTouchEvent material viewbox: " + material.getDocumentViewBox() + ", width: " + material.getDocumentWidth() + ", height: " + material.getDocumentHeight());
             Log.i(TAG, "onTouchEvent geometry viewbox: " + geometry.getDocumentViewBox() + ", width: " + geometry.getDocumentWidth() + ", height: " + geometry.getDocumentHeight());
         }
 
 
-
-
-
-
-        /*VectorDrawable testDrawable = (VectorDrawable) getResources().getDrawable(R.drawable.box);
-        testDrawable.setBounds((int) x, (int) y, (int) x + testDrawable.getIntrinsicHeight(), (int) y + testDrawable.getIntrinsicWidth());
-
-        testDrawable.draw(canvas);
-
-        x += 100; y += 100;*/
-
+        //print contents of file
         /*Log.i(TAG, "star path: " + geometryUri.getPath());
         File file = new File(geometryUri.getPath());
 
@@ -180,71 +144,9 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
 
 
 
-//        VectorDrawable starDrawable = (VectorDrawable) VectorDrawable.createFromPath(file.getAbsolutePath());
-        /*VectorDrawable starDrawable = (VectorDrawable) getResources().getDrawable(R.drawable.shape20cm);
-        ScaleDrawable scaledVector = new ScaleDrawable(starDrawable, Gravity.NO_GRAVITY, 0.78f, 0.78f);
-        scaledVector.setBounds((int) x, (int) y, (int) x + scaledVector.getIntrinsicHeight(), (int) y + starDrawable.getIntrinsicWidth());
-
-
-        Log.i(TAG, "Star drawable is: " + starDrawable);
-
-        starDrawable.setBounds((int) x, (int) y, (int) x + starDrawable.getIntrinsicHeight(), (int) y + starDrawable.getIntrinsicWidth());
-
-        scaledVector.draw(canvas);
-        starDrawable.draw(canvas);*/
-
-
         surfaceHolder.unlockCanvasAndPost(canvas);
-
-//        if (event.getAction() == MotionEvent.ACTION_UP) {
-//            Log.i(TAG, "onTouchEvent geometry rect: " + testDrawable.getBounds().toString());
-//        }
 
         return true;
-
-        //        canvas.drawColor(Color.BLACK);
-
-        /*Point startPoint = new Point(), finishPoint = new Point();
-
-        switch (event.getAction()) {
-            case MotionEvent.ACTION_DOWN:
-                *//*pointList.add(new Point(event.getX(), event.getY()));
-
-                for (int i = 0; i < pointList.size(); i++) {
-                    Point currentPoint = pointList.get(i);
-                    canvas.drawCircle((float)currentPoint.x, (float)currentPoint.y, 10, paint);
-
-                    if (i + 1 < pointList.size()) {
-                        Point nextPoint = pointList.get(i+1);
-                        canvas.drawLine((float)currentPoint.x, (float)currentPoint.y, (float)nextPoint.x, (float)nextPoint.y, paint);
-                    }
-                }*//*
-
-                startPoint = new Point(event.getX(), event.getY());
-                pointList.add(0, startPoint);
-                canvas.drawCircle((float)startPoint.x, (float)startPoint.y, 10, paint);
-                surfaceHolder.unlockCanvasAndPost(canvas);
-                return true;
-//                break;
-
-            case MotionEvent.ACTION_MOVE:
-                Point currentPos = new Point(event.getX(), event.getY());
-                canvas.drawCircle((float)startPoint.x, (float)startPoint.y, 10, paint);
-                canvas.drawLine((float) startPoint.x, (float) startPoint.y, (float) currentPos.x, (float) currentPos.y, paint);
-                break;
-
-            case MotionEvent.ACTION_UP:
-                finishPoint = new Point(event.getX(), event.getY());
-                pointList.add(1, finishPoint);
-                canvas.drawCircle((float) startPoint.x, (float) startPoint.y, 10, paint);
-                canvas.drawCircle((float)finishPoint.x, (float)finishPoint.y, 10, paint);
-                canvas.drawLine((float) startPoint.x, (float) startPoint.y, (float) finishPoint.x, (float) finishPoint.y, paint);
-                break;
-
-        }
-        surfaceHolder.unlockCanvasAndPost(canvas);
-
-        return false;*/
     }
 
     @Override
@@ -255,19 +157,15 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
 
         Log.i(TAG, "surface created");
 
-//            svg = SVG.getFromAsset(getContext().getAssets(), "test.svg");
-            /*Log.i(TAG, "SVG version: " + svg.getDocumentSVGVersion());
-            Log.i(TAG, "SVG height: " + svg.getDocumentHeight() + " width: " + svg.getDocumentWidth());
-            Log.i(TAG, "SVG viewbox: " + svg.getDocumentViewBox());
+        material.renderToCanvas(canvas, material.getDocumentViewBox());
+//        geometry.renderToCanvas(canvas, geometry.getDocumentViewBox());
 
-            svg.renderToCanvas(canvas, new RectF(0,0,800,600));*/
-//            svg.renderToCanvas(canvas);
+        canvas.save();
+        canvas.scale(scale,scale);
+        canvas.rotate(180, canvas.getWidth()/2, canvas.getHeight()/2);
 
-//            svg = SVG.getFromAsset(getContext().getAssets(), "box.svg");
-//            svg.renderToCanvas(canvas);
-
-        material.renderToCanvas(canvas);
-//        geometry.renderToCanvas(canvas);
+        geometry.renderToCanvas(canvas, geometry.getDocumentViewBox());
+        canvas.restore();
 
         surfaceHolder.unlockCanvasAndPost(canvas);
     }

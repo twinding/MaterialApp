@@ -388,7 +388,7 @@ public class SVG
       SVGAndroidRenderer  renderer = new SVGAndroidRenderer(canvas, svgViewPort, this.renderDPI);
 
       renderer.renderDocument(this, null, null, true);
-//      renderer.renderDocument(this, svgViewPort, new PreserveAspectRatio(PreserveAspectRatio.Alignment.None, null), true);
+//      renderer.renderDocument(this, null, new PreserveAspectRatio(PreserveAspectRatio.Alignment.XMidYMid, null), true);
 //      renderer.renderDocument(this, svgViewPort, null, true);
    }
 

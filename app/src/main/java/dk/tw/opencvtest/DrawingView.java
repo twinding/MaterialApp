@@ -46,6 +46,10 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
     private final String TAG = "DrawingView";
     private final float scale = 0.78f;
 
+    private float offsetX = 0;
+    private float offsetY = 0;
+    private boolean moving = false;
+
     private final SurfaceHolder surfaceHolder;
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private SVG material, geometry;
@@ -62,7 +66,6 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
             materialHeight = material.getDocumentViewBox().bottom;
 
             geometry = SVG.getFromAsset(getContext().getAssets(), "shape20cm.svg");
-//            geometry.setDocumentViewBox(geometry.getDocumentViewBox().left * scale, geometry.getDocumentViewBox().top * scale, geometry.getDocumentViewBox().right * scale, geometry.getDocumentViewBox().bottom * scale);
             geometryWidth = geometry.getDocumentViewBox().right * scale;
             geometryHeight = geometry.getDocumentViewBox().bottom * scale;
 
@@ -91,8 +94,9 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
         }*/
     }
 
-
-
+    /**
+     * When the view is touched this method is called
+     */
     public boolean onTouchEvent(MotionEvent event) { //http://stackoverflow.com/questions/13305706/android-drawing-objects-on-screen-and-obtaining-geometry-data/13308008#13308008
         if (!surfaceHolder.getSurface().isValid()) {
             Log.e("DrawingActivity", "Invalid surface!");
@@ -103,10 +107,69 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
         canvas.drawColor(Color.WHITE); //Fill canvas with white
 
         //Touch coordinates
-        float x = event.getX();
-        float y = event.getY();
+        float touchX = event.getX();
+        float touchY = event.getY();
 
         material.renderToCanvas(canvas, material.getDocumentViewBox());
+
+        switch (event.getAction()) { //Switch depending on whether it is the initial touch, a dragging gesture, or the user stops the gesture
+            case MotionEvent.ACTION_DOWN: //Initial touch
+                RectF geometryViewBox = geometry.getDocumentViewBox();
+                if (offsetViewBox(geometryViewBox).contains(touchX, touchY)) { //The touch gesture was inside the geometry viewbox
+                    moving = true;
+                    //Apply color filter to the moving geometry
+                    geometry.setColorFilter(new PorterDuffColorFilter(Color.RED, PorterDuff.Mode.SRC_ATOP));
+
+                    //Calculate the offset from the touch position to the top left corner of geometry
+                    offsetX = touchX - geometryViewBox.left;
+                    offsetY = touchY - geometryViewBox.top;
+
+                    drawScaled(canvas, geometry, touchX - offsetX, touchY - offsetY);
+                } else drawScaled(canvas, geometry); //Draw the geometry in place
+                break;
+            case MotionEvent.ACTION_MOVE: //Dragging gesture
+                if (moving) {
+                    drawScaled(canvas, geometry, touchX - offsetX, touchY - offsetY);
+                } else drawScaled(canvas, geometry); //Draw the geometry in place
+                break;
+            case MotionEvent.ACTION_UP: //Touch gesture is stopped
+                if (moving) {
+                    moving = false;
+                    //Apply color filter to the moving geometry
+                    geometry.setColorFilter(new PorterDuffColorFilter(Color.BLUE, PorterDuff.Mode.SRC_ATOP));
+
+                    drawScaled(canvas, geometry, touchX - offsetX, touchY - offsetY);
+                } else drawScaled(canvas, geometry); //Draw the geometry in place
+                break;
+        }
+
+        //Debug, draw viewbox
+        //Needs to be offset because the coordinates change when scaling
+        /*RectF rect = geometry.getDocumentViewBox();
+        rect = offsetViewBox(rect);
+        paint.setColor(Color.BLUE);
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeWidth(5);
+        canvas.drawRect(rect, paint);*/
+
+        surfaceHolder.unlockCanvasAndPost(canvas);
+
+        return true;
+    }
+
+    /**
+     * Draw a scaled SVG to the given position on a canvas
+     * @param canvas The canvas to draw to
+     * @param geometry The SVG to draw
+     * @param x X coordinate
+     * @param y Y coordinate
+     */
+    private void drawScaled(Canvas canvas, SVG geometry, float x, float y) {
+
+        RectF viewBox = geometry.getDocumentViewBox();
+        //Can't figure out why multiplying by scale is not needed here
+        float geometryWidth = viewBox.right - viewBox.left;
+        float geometryHeight = viewBox.bottom - viewBox.top;
 
         //Save canvas settings
         canvas.save();
@@ -117,42 +180,45 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
         //Set the viewbox to the touched position, divide by scale so it follows the touched position
         geometry.setDocumentViewBox(x / scale, y / scale, geometryWidth, geometryHeight);
 
-        //Apply color filter to the moving geometry
-        PorterDuffColorFilter cf = new PorterDuffColorFilter(Color.RED, PorterDuff.Mode.SRC_ATOP);
-        geometry.setColorFilter(cf);
+        //Render
+        geometry.renderToCanvas(canvas, geometry.getDocumentViewBox());
+
+        //Restore canvas to the state saved above
+        canvas.restore();
+    }
+
+    /**
+     * Draw a scaled SVG at its current position, to the given canvas
+     * @param canvas The canvas to draw to
+     * @param geometry The SVG to draw
+     */
+    private void drawScaled(Canvas canvas, SVG geometry) {
+        RectF viewBox = geometry.getDocumentViewBox();
+        //Can't figure out why multiplying by scale is not needed here
+        float geometryWidth = viewBox.right - viewBox.left;
+        float geometryHeight = viewBox.bottom - viewBox.top;
+
+        //Save canvas settings
+        canvas.save();
+
+        //Scale for relative size
+        canvas.scale(scale, scale);
+
+        //Set the viewbox to the touched position, divide by scale so it follows the touched position
+        geometry.setDocumentViewBox(viewBox.left, viewBox.top, geometryWidth, geometryHeight);
 
         //Render
         geometry.renderToCanvas(canvas, geometry.getDocumentViewBox());
 
         //Restore canvas to the state saved above
         canvas.restore();
-
-        //Drawing viewBox, it needs to be offset because the coordinates change when scaling
-        RectF rect = offsetViewBox(geometry.getDocumentViewBox());
-        paint.setColor(Color.BLUE);
-        paint.setStyle(Paint.Style.STROKE);
-        paint.setStrokeWidth(5);
-        canvas.drawRect(rect, paint);
-
-        Log.i(TAG, "onTouchEvent geometry: " + geometry.getDocumentViewBox().toString());
-        Log.i(TAG, "onTouchEvent rect    : " + rect.toString());
-
-
-
-        if (event.getAction() == MotionEvent.ACTION_UP) { //When user stops touching the screen
-            Log.i(TAG, "onTouchEvent geometry width: " + geometryWidth + " geometry height: " + geometryHeight);
-            Log.i(TAG, "onTouchEvent x: " + x + ", y: " + y);
-            Log.i(TAG, "onTouchEvent: x+width: " + (geometryWidth+x) + " y+height: " + (geometryHeight+y));
-            Log.i(TAG, "onTouchEvent material viewbox: " + material.getDocumentViewBox() + ", width: " + material.getDocumentWidth() + ", height: " + material.getDocumentHeight());
-            Log.i(TAG, "onTouchEvent geometry viewbox: " + geometry.getDocumentViewBox() + ", width: " + geometry.getDocumentWidth() + ", height: " + geometry.getDocumentHeight());
-        }
-
-
-        surfaceHolder.unlockCanvasAndPost(canvas);
-
-        return true;
     }
 
+    /**
+     * Offset the given viewbox to overcome the differences in coordinates when scaling
+     * @param viewBox The viewbox to offset
+     * @return Viewbox corrected for scaling
+     */
     private RectF offsetViewBox(RectF viewBox) {
         viewBox.offsetTo(viewBox.left * scale, viewBox.top * scale);
         return viewBox;
@@ -163,23 +229,16 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
         Canvas canvas = surfaceHolder.lockCanvas();
         canvas.drawColor(Color.WHITE); //Fill canvas with white
 
-        Log.i(TAG, "surface created");
-
         material.renderToCanvas(canvas, material.getDocumentViewBox());
-//        geometry.renderToCanvas(canvas, geometry.getDocumentViewBox());
 
         canvas.save(); //Save canvas settings
-//        canvas.scale(scale,scale); //Scale so the geometry has the same dimensions relative to material
-//        canvas.rotate(180, canvas.getWidth()/2, canvas.getHeight()/2); //Rotate canvas so the model is upside down and around the middle
 
-        RectF vb = geometry.getDocumentViewBox();
-        geometry.setDocumentViewBox(250, 250, vb.right, vb.bottom);
+        //Scale for relative size
+        canvas.scale(scale, scale);
+
+        geometry.setDocumentViewBox(100, 100, geometryWidth, geometryHeight);
+        geometry.setColorFilter(new PorterDuffColorFilter(Color.BLUE, PorterDuff.Mode.SRC_ATOP));
         geometry.renderToCanvas(canvas, geometry.getDocumentViewBox());
-
-        paint.setColor(Color.BLUE);
-        paint.setStyle(Paint.Style.STROKE);
-        paint.setStrokeWidth(5);
-        canvas.drawRect(vb, paint);
 
         canvas.restore(); //Restore canvas settings
 
@@ -196,6 +255,12 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
 
     }
 
+    /**
+     * Converts a given SVG string to Android Vector format
+     * Only works for SVGs with <polygon> elements
+     * @param svg The SVG, as string, to convert
+     * @return Android Vector formatted string
+     */
     public String convertSVG(String svg) {
         try {
             DocumentBuilder db = DocumentBuilderFactory.newInstance().newDocumentBuilder();
@@ -275,6 +340,11 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
         return null;
     }
 
+    /**
+     * Prints the given document with appropriate XML prefixes
+     * @param doc The document to print
+     * @return The document as a string
+     */
     public String printDocument(Document doc) {
         try {
             TransformerFactory tf = TransformerFactory.newInstance();
@@ -295,6 +365,11 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
         return null;
     }
 
+    /**
+     * Converts the points of a <polygon> element to <path> appropriate formatting
+     * @param input The points to convert to path
+     * @return The converted points as string
+     */
     public String convertPointsToPath(String input) {
         Log.i(TAG, "convertPointsToPathinptu: " + input);
         input = input.replace("\n", "").replace("\r", "").replace("\t", " ").replace("  ", " ");
@@ -315,6 +390,12 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
         return result.toString();
     }
 
+    /**
+     * Helper method to circumvent LogCat's 4000 character limit for printing
+     * Only works if the input has line breaks
+     * @param input The string to print
+     * @param prefix Prefix text for the print, e.g. "MyApp"
+     */
     public void longLogSplitOnLineBreak(String input, String prefix) {
         String[] splitResult = input.split("\r?\n|\r");
         for (String output : splitResult) {

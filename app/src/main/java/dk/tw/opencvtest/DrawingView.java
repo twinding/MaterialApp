@@ -1,26 +1,37 @@
 package dk.tw.opencvtest;
 
+import android.app.AlertDialog;
+import android.app.Dialog;
 import android.content.Context;
+import android.content.DialogInterface;
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
 import android.graphics.RectF;
+import android.media.MediaScannerConnection;
 import android.net.Uri;
+import android.os.Environment;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.widget.Toast;
 
 import com.caverock.androidsvg.SVG;
 import com.caverock.androidsvg.SVGParseException;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.io.Writer;
@@ -46,6 +57,7 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
     private final String TAG = "DrawingView";
     private final float scale = 0.78f;
 
+    private String geometryFilename, materialFilename;
     private float offsetX = 0;
     private float offsetY = 0;
     private boolean moving = false;
@@ -54,20 +66,122 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private SVG material, geometry;
     private Uri geometryUri;
-    float materialWidth, materialHeight, geometryWidth, geometryHeight;
+    private float materialWidth, materialHeight, geometryWidth, geometryHeight;
+    private Bitmap imageBitmap;
 
+    private class StringContainer{ //Container for a string value
+        private String string;
+
+        StringContainer(String string) {
+            this.string = string;
+        }
+
+        public String getString() {
+            return string;
+        }
+
+        public void setString(String string) {
+            this.string = string;
+        }
+    }
+
+    /**
+     * Creates a dialog that shows all files in the SVG asset folder and allows the user
+     * to pick one
+     * @return A Dialog that shows the list of SVGs and allows the user to pick one
+     */
+    private Dialog createAlertDialog() {
+        //StringContainer is used because it's not possible to change a String from an inner anonymous class
+        final StringContainer selectedItem = new StringContainer("");
+        //Get builder
+        AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
+        //Title text for the dialog
+        builder.setTitle("Pick a geometry to add");
+
+        try {
+            //Get list of SVGs
+            final CharSequence[] assetFileList = getContext().getAssets().list("SVG");
+            //Initially set selected item to item 0
+            selectedItem.setString(assetFileList[0].toString());
+            //Single choice list with the SVGS, updates the StringContainer when something is selected
+            builder.setSingleChoiceItems(assetFileList, 0, new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    selectedItem.setString(assetFileList[which].toString()); //Update selected item
+                }
+            });
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        //Set a confirmation button on the dialog
+        builder.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                Toast.makeText(getContext(), selectedItem.getString(), Toast.LENGTH_SHORT).show();
+                addGeometry(selectedItem.getString());
+            }
+        });
+
+        return builder.create();
+    }
+
+    /**
+     * Add a geometry to the canvas, currently only supports adding a single geometry
+     * Could be updated with a list of geometries, would require some rewriting of code in the whole class
+     * @param filename The filename of the SVG to add to the picture
+     */
+    private void addGeometry(String filename) {
+        try {
+            geometryFilename = filename;
+
+            Canvas canvas = surfaceHolder.lockCanvas();
+            canvas.drawColor(Color.WHITE); //Fill canvas with white
+
+            material.renderToCanvas(canvas, material.getDocumentViewBox());
+
+            geometry = SVG.getFromAsset(getContext().getAssets(), "SVG/" + geometryFilename);
+            geometryWidth = geometry.getDocumentViewBox().right * scale;
+            geometryHeight = geometry.getDocumentViewBox().bottom * scale;
+
+            geometry.setDocumentWidth("100%");
+            geometry.setDocumentHeight("100%");
+
+            geometry.setColorFilter(new PorterDuffColorFilter(Color.BLUE, PorterDuff.Mode.SRC_ATOP));
+
+            drawScaled(canvas, geometry, 100f, 100f);
+
+            /*canvas.save(); //Save canvas settings
+
+            //Scale for relative size
+            canvas.scale(scale, scale);
+
+            geometry.setDocumentViewBox(100, 100, geometryWidth, geometryHeight);
+            geometry.setColorFilter(new PorterDuffColorFilter(Color.BLUE, PorterDuff.Mode.SRC_ATOP));
+            geometry.renderToCanvas(canvas, geometry.getDocumentViewBox());
+
+            canvas.restore(); //Restore canvas settings*/
+
+            surfaceHolder.unlockCanvasAndPost(canvas);
+        } catch (SVGParseException | IOException e) {
+            e.printStackTrace();
+        }
+
+    }
 
     public DrawingView(Context context) {
         super(context);
+        createAlertDialog().show();
+        materialFilename = "material.svg";
 
         try {
-            material = SVG.getFromAsset(getContext().getAssets(), "material.svg");
+            material = SVG.getFromAsset(getContext().getAssets(), "SVG/" + materialFilename);
             materialWidth = material.getDocumentViewBox().right;
             materialHeight = material.getDocumentViewBox().bottom;
 
-            geometry = SVG.getFromAsset(getContext().getAssets(), "shape20cm.svg");
+            /*geometry = SVG.getFromAsset(getContext().getAssets(), "SVG/shape20cm.svg");
             geometryWidth = geometry.getDocumentViewBox().right * scale;
-            geometryHeight = geometry.getDocumentViewBox().bottom * scale;
+            geometryHeight = geometry.getDocumentViewBox().bottom * scale;*/
 
         } catch (SVGParseException | IOException e) {
             e.printStackTrace();
@@ -95,7 +209,7 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     /**
-     * When the view is touched this method is called
+     * When the view is touched this method is called, handles moving the geometry around when dragged
      */
     public boolean onTouchEvent(MotionEvent event) { //http://stackoverflow.com/questions/13305706/android-drawing-objects-on-screen-and-obtaining-geometry-data/13308008#13308008
         if (!surfaceHolder.getSurface().isValid()) {
@@ -151,7 +265,7 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
         paint.setStyle(Paint.Style.STROKE);
         paint.setStrokeWidth(5);
         canvas.drawRect(rect, paint);*/
-
+        this.invalidate();
         surfaceHolder.unlockCanvasAndPost(canvas);
 
         return true;
@@ -161,15 +275,22 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
      * Draw a scaled SVG to the given position on a canvas
      * @param canvas The canvas to draw to
      * @param geometry The SVG to draw
-     * @param x X coordinate
-     * @param y Y coordinate
+     * @param x X coordinate, if null will draw at the current position
+     * @param y Y coordinate, if null will draw at the current position
      */
-    private void drawScaled(Canvas canvas, SVG geometry, float x, float y) {
-
+    private void drawScaled(Canvas canvas, SVG geometry, Float x, Float y) {
         RectF viewBox = geometry.getDocumentViewBox();
         //Can't figure out why multiplying by scale is not needed here
         float geometryWidth = viewBox.right - viewBox.left;
         float geometryHeight = viewBox.bottom - viewBox.top;
+
+        if (x == null || y == null) { //If coordinates are null, the geometry will be redrawn at its current position
+            x = viewBox.left;
+            y = viewBox.top;
+        } else { //Divide by scale so it follows the touched position
+            x /= scale;
+            y /= scale;
+        }
 
         //Save canvas settings
         canvas.save();
@@ -177,8 +298,8 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
         //Scale for relative size
         canvas.scale(scale, scale);
 
-        //Set the viewbox to the touched position, divide by scale so it follows the touched position
-        geometry.setDocumentViewBox(x / scale, y / scale, geometryWidth, geometryHeight);
+        //Set the viewbox to the touched position
+        geometry.setDocumentViewBox(x, y, geometryWidth, geometryHeight);
 
         //Render
         geometry.renderToCanvas(canvas, geometry.getDocumentViewBox());
@@ -188,30 +309,14 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     /**
-     * Draw a scaled SVG at its current position, to the given canvas
+     * Convenience method
+     * Draw a scaled SVG at its current position, to the given canvas by calling
+     * drawScaled(canvas, geometry, x, y) with null as coordinate parameters
      * @param canvas The canvas to draw to
      * @param geometry The SVG to draw
      */
     private void drawScaled(Canvas canvas, SVG geometry) {
-        RectF viewBox = geometry.getDocumentViewBox();
-        //Can't figure out why multiplying by scale is not needed here
-        float geometryWidth = viewBox.right - viewBox.left;
-        float geometryHeight = viewBox.bottom - viewBox.top;
-
-        //Save canvas settings
-        canvas.save();
-
-        //Scale for relative size
-        canvas.scale(scale, scale);
-
-        //Set the viewbox to the touched position, divide by scale so it follows the touched position
-        geometry.setDocumentViewBox(viewBox.left, viewBox.top, geometryWidth, geometryHeight);
-
-        //Render
-        geometry.renderToCanvas(canvas, geometry.getDocumentViewBox());
-
-        //Restore canvas to the state saved above
-        canvas.restore();
+        drawScaled(canvas, geometry, null, null);
     }
 
     /**
@@ -227,11 +332,14 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
         Canvas canvas = surfaceHolder.lockCanvas();
+
         canvas.drawColor(Color.WHITE); //Fill canvas with white
 
         material.renderToCanvas(canvas, material.getDocumentViewBox());
 
-        canvas.save(); //Save canvas settings
+
+
+        /*canvas.save(); //Save canvas settings
 
         //Scale for relative size
         canvas.scale(scale, scale);
@@ -240,7 +348,7 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
         geometry.setColorFilter(new PorterDuffColorFilter(Color.BLUE, PorterDuff.Mode.SRC_ATOP));
         geometry.renderToCanvas(canvas, geometry.getDocumentViewBox());
 
-        canvas.restore(); //Restore canvas settings
+        canvas.restore(); //Restore canvas settings*/
 
         surfaceHolder.unlockCanvasAndPost(canvas);
     }
@@ -255,7 +363,74 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
 
     }
 
-    /**
+    public void menuClicked() {
+        Toast.makeText(getContext(), "Saving...", Toast.LENGTH_SHORT).show();
+        combineSVGs(geometry);
+
+        /*//Write to permanent file
+        File file = new File(Environment.getExternalStorageDirectory().toString()+"/save.png");
+        try {
+            FileOutputStream fos = new FileOutputStream(file);
+            imageBitmap.compress(Bitmap.CompressFormat.PNG, 100, fos);
+            fos.close();
+            MediaScannerConnection.scanFile(getContext(), new String[]{file.getAbsolutePath()}, null, null);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }*/
+    }
+
+    public void combineSVGs(SVG geometry) {
+        float geometryX = geometry.getDocumentViewBox().left;
+        float geometryY = geometry.getDocumentViewBox().top;
+
+        DocumentBuilder db = null;
+        try {
+            db = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+            Document geometryDoc = db.parse(getContext().getAssets().open("SVG/" + geometryFilename));
+            Document materialDoc = db.parse(getContext().getAssets().open("SVG/" + materialFilename));
+            XPath xpath = XPathFactory.newInstance().newXPath();
+            XPathExpression expr = xpath.compile(".//polygon");
+            NodeList geometryNL = (NodeList) expr.evaluate(geometryDoc, XPathConstants.NODESET);
+            expr = xpath.compile(".//svg");
+            NodeList materialNL = (NodeList) expr.evaluate(materialDoc, XPathConstants.NODESET);
+            Element materialSvgNode = (Element) materialNL.item(0);
+            printDocument(materialDoc);
+
+            for (int i = 0; i < geometryNL.getLength(); i++) {
+                Element node = (Element) geometryNL.item(i);
+                node.setAttribute("stroke", "#FF0000");
+                String points = node.getAttribute("points");
+                node.setAttribute("points", offsetPoints(geometryX, geometryY, points));
+
+                Node importNode = materialDoc.importNode(node, true);
+                materialDoc.getDocumentElement().appendChild(importNode);
+            }
+            printDocument(materialDoc);
+        } catch (ParserConfigurationException | SAXException | IOException | XPathExpressionException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public String offsetPoints(float x, float y, String points) {
+        points = points.replace("\n", "").replace("\r", "").replace("\t", " ").replace("  ", " ");
+        String[] coordinateSets = points.split(" ");
+        float[] xCoords = new float[coordinateSets.length];
+        float[] yCoords = new float[coordinateSets.length];
+        String[] coord;
+        for (int i = 0; i < coordinateSets.length; i++) {
+            coord = coordinateSets[i].split(",");
+            xCoords[i] = (Float.parseFloat(coord[0]) + x) * scale;
+            yCoords[i] = (Float.parseFloat(coord[1]) + y) * scale;
+        }
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < coordinateSets.length; i++) {
+            sb.append(xCoords[i]).append(",").append(yCoords[i]).append(" ");
+        }
+        sb.setLength(sb.length() - 1);
+        return sb.toString();
+    }
+
+     /**
      * Converts a given SVG string to Android Vector format
      * Only works for SVGs with <polygon> elements
      * @param svg The SVG, as string, to convert

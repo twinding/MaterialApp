@@ -1,6 +1,10 @@
 package dk.tw.opencvtest;
 
+import android.app.AlertDialog;
+import android.app.Dialog;
+import android.content.DialogInterface;
 import android.graphics.Bitmap;
+import android.graphics.RectF;
 import android.media.MediaScannerConnection;
 import android.net.Uri;
 import android.os.Environment;
@@ -10,8 +14,12 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.Toast;
+
+import com.caverock.androidsvg.SVG;
+import com.caverock.androidsvg.SVGParseException;
 
 import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.LoaderCallbackInterface;
@@ -43,6 +51,9 @@ public class FindContoursActivity extends AppCompatActivity {
     private Mat canny, blur, morphology, gray, filledContours, warpedPerspective, bilateral, eroded, h, s, v;
     int markerSize = 250;
     Bitmap inputPicture;
+    StringContainer fileName;
+    String svgFileString;
+    ArrayList<MatOfPoint> contours2;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -108,7 +119,9 @@ public class FindContoursActivity extends AppCompatActivity {
         Imgproc.GaussianBlur(gray, blur, new Size(3, 3), 0); //Gaussian blur image
 
         bilateral = new Mat(gray.rows(), gray.cols(), CvType.CV_8UC1);
-        int kernelLength = 23;
+        //Length of the kernel for the bilateral filter, determines the intensity, the higher the more intense
+        int kernelLength = 9;
+        //Bilateral filter, blurs more around non-edges, hence good for edge detection preprocessing
         Imgproc.bilateralFilter(gray.clone(), bilateral, kernelLength, kernelLength * 2, kernelLength / 2);
 
         Scalar imageMean = Core.mean(blur); //Mean of image
@@ -141,7 +154,7 @@ public class FindContoursActivity extends AppCompatActivity {
 //        thinned = zhangSuenThinning(morphology);
 //        thinned.convertTo(thinned, CvType.CV_8UC1);
 
-        ArrayList<MatOfPoint> contours2 = new ArrayList<>();
+        contours2 = new ArrayList<>();
         Mat hierarchy = new Mat();
 //        Imgproc.findContours(canny.clone(), contours2, hierarchy, Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_SIMPLE); //Find contours on image
         Imgproc.findContours(morphology.clone(), contours2, hierarchy, Imgproc.RETR_CCOMP, Imgproc.CHAIN_APPROX_SIMPLE); //Find contours on image
@@ -245,7 +258,7 @@ public class FindContoursActivity extends AppCompatActivity {
             svgFile.append("<polygon fill=\"none\" stroke=\"#000000\" stroke-width=\"1\" points=\"");
 
             for (Point point : mat.toArray()) {
-                if (point.x > maxX) maxX = point.x;
+                if (point.x > maxX) maxX = point.x; //Finding largest X and Y for setting viewBox attribute
                 if (point.y > maxY) maxY = point.y;
                 svgFile.append(point.x);
                 svgFile.append(",");
@@ -257,21 +270,12 @@ public class FindContoursActivity extends AppCompatActivity {
         svgFile.append("</svg>");
         Log.i("svgFile", svgFile.toString());
 
-        String svgFileString = svgFile.toString();
+        svgFileString = svgFile.toString();
         svgFileString = svgFileString.replace("#viewBox", "0 0 " + maxX + " " + maxY);
         Log.i("svgFileString", svgFileString);
 
 
-        //Writing SVG to file
-        File file = new File(Environment.getExternalStorageDirectory().toString()+ "/SVG/test.svg"); //TODO naming
-        try {
-            FileWriter fileWriter = new FileWriter(file);
-            fileWriter.write(svgFileString);
-            fileWriter.close();
-            MediaScannerConnection.scanFile(this, new String[]{file.getAbsolutePath()}, null, null);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+
 
         Imgproc.drawContours(warpedPerspective, contours2, -1, new Scalar(0, 255, 0), 1/*, Imgproc.LINE_4, hierarchy, 0, new Point(0,0)*/);
 
@@ -280,16 +284,17 @@ public class FindContoursActivity extends AppCompatActivity {
         //Trying to fill the outermost contour so we could apply erosion to it, need to somehow
         //fill the outmost but not children
         //The above happens fine, as long as the outermost contour is actually closed
-        filledContours = morphology.clone();
+        /*filledContours = morphology.clone();
         Core.bitwise_not(filledContours, filledContours);
         Imgproc.drawContours(filledContours, contours2, -1, new Scalar(0, 255, 0), -1);
         Core.bitwise_not(filledContours, filledContours);
+        //TODO Get the bounding box/viewbox of the geometry and use its coordinates to determine the size of the structuring element
 //        Mat structuringElement2 = Imgproc.getStructuringElement(Imgproc.CV_SHAPE_RECT, new Size(256, 256));
         Mat structuringElement2 = Imgproc.getStructuringElement(Imgproc.CV_SHAPE_RECT, new Size(1024, 1024));
         Imgproc.erode(filledContours, eroded, structuringElement2);
         if (Core.countNonZero(eroded) < 1) {
             Toast.makeText(this, "Your model does not fit.", Toast.LENGTH_SHORT).show();
-        } else Toast.makeText(this, "Your model fits!", Toast.LENGTH_SHORT).show();
+        } else Toast.makeText(this, "Your model fits!", Toast.LENGTH_SHORT).show();*/
     }
 
     public float roundFloat(float number, int decimals) {
@@ -318,8 +323,8 @@ public class FindContoursActivity extends AppCompatActivity {
         menu.addSubMenu("Hue");
         menu.addSubMenu("Saturation");
         menu.addSubMenu("Values");
-
-
+        menu.addSubMenu("Save material");
+        menu.addSubMenu("Geometry fit");
 
         return super.onCreateOptionsMenu(menu);
     }
@@ -371,8 +376,131 @@ public class FindContoursActivity extends AppCompatActivity {
                 Toast.makeText(this, "values", Toast.LENGTH_SHORT).show();
                 setImage(v);
                 break;
+            case "Save material":
+                saveFilePromptForFilenameDialog().show();
+                break;
+            case "Geometry fit":
+                pickGeometryToTestDialog().show();
+                break;
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    private Dialog saveFilePromptForFilenameDialog() {
+        //Get builder
+        final AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        //Title text for the dialog
+        builder.setTitle("Enter name of material");
+        final EditText fileNameInput = new EditText(this);
+        fileNameInput.setSingleLine(true);
+        fileNameInput.setHint("Enter name...");
+        builder.setView(fileNameInput);
+
+        //Set positive button on the dialog
+        builder.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                //TODO Check for empty filename?
+                String input = fileNameInput.getText().toString().trim(); //Get the string entered in the edittext and remove trailing and preceding spaces
+                Toast.makeText(FindContoursActivity.this, input, Toast.LENGTH_SHORT).show();
+                saveFile(input, svgFileString);
+            }
+        });
+        //Set negative button on the dialog
+        builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.dismiss(); //Dismiss the dialog
+            }
+        });
+
+        return builder.create();
+    }
+
+    public void saveFile(String fileName, String contents) {
+        //Writing to file
+        File file = new File(Environment.getExternalStorageDirectory().toString() + "/" + fileName + ".svg"); //TODO naming
+        try {
+            FileWriter fileWriter = new FileWriter(file);
+            fileWriter.write(contents);
+            fileWriter.close();
+            MediaScannerConnection.scanFile(this, new String[]{file.getAbsolutePath()}, null, null);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Creates a dialog that shows all files in the SVG asset folder and allows the user
+     * to pick one
+     * @return A Dialog that shows the list of SVGs and allows the user to pick one
+     */
+    private Dialog pickGeometryToTestDialog() {
+        //StringContainer is used because it's not possible to change a String from an inner anonymous class
+        final StringContainer selectedItem = new StringContainer("");
+        //Get builder
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        //Title text for the dialog
+        builder.setTitle("Pick a geometry to test");
+
+        try {
+            //Get list of SVGs
+            final CharSequence[] assetFileList = this.getAssets().list("SVG");
+            //Initially set selected item to item 0
+            selectedItem.setString(assetFileList[0].toString());
+            //Single choice list with the SVGS, updates the StringContainer when something is selected
+            builder.setSingleChoiceItems(assetFileList, 0, new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    selectedItem.setString(assetFileList[which].toString()); //Update selected item
+                }
+            });
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        //Set a confirmation button on the dialog
+        builder.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                Toast.makeText(FindContoursActivity.this, selectedItem.getString(), Toast.LENGTH_SHORT).show();
+                testGeometry(selectedItem.getString());
+            }
+        });
+
+        return builder.create();
+    }
+
+    /**
+     * Tests whether a given geometry fits somewhere inside the scanned material
+     * @param filename Filename of the file inside Assets folder to test
+     */
+    public void testGeometry(String filename) {
+        try {
+            SVG geometry = SVG.getFromAsset(this.getAssets(), "SVG/" + filename); //Retrieve SVG
+            RectF viewBox = geometry.getDocumentViewBox(); //Get the viewBox of the SVG
+            float scaleUp = 1.28205f; //Our magic scale number, since we determine 1px = 0.78mm
+            //Scale the geometry which should be made with 1px = 1mm for ease of use
+            float geometryWidth = (viewBox.right - viewBox.left) * scaleUp;
+            float geometryHeight = (viewBox.bottom - viewBox.top) * scaleUp;
+
+            filledContours = morphology.clone();
+            Core.bitwise_not(filledContours, filledContours); //Invert the picture
+            //Draw contours, -1 thickness is passed as that fills out the contour
+            Imgproc.drawContours(filledContours, contours2, -1, new Scalar(0, 255, 0), -1);
+            Core.bitwise_not(filledContours, filledContours); //Invert again for erosion
+//            Mat structuringElement2 = Imgproc.getStructuringElement(Imgproc.CV_SHAPE_RECT, new Size(256, 256));
+//            Mat structuringElement2 = Imgproc.getStructuringElement(Imgproc.CV_SHAPE_RECT, new Size(1024, 1024));
+            //Structuring element constructed from the width and height of the SVG
+            //Could be made more advanced in following the path of the SVG more closely for better fitting
+            Mat structuringElement2 = Imgproc.getStructuringElement(Imgproc.CV_SHAPE_RECT, new Size(geometryWidth, geometryHeight));
+            Imgproc.erode(filledContours, eroded, structuringElement2); //Erosion using the structuring element
+            if (Core.countNonZero(eroded) < 1) { //Check if anything is left after eroding, if there is, the SVG fits
+                Toast.makeText(this, "Your model does not fit.", Toast.LENGTH_SHORT).show();
+            } else Toast.makeText(this, "Your model fits!", Toast.LENGTH_SHORT).show();
+        } catch (SVGParseException | IOException e) {
+            e.printStackTrace();
+        }
     }
 }

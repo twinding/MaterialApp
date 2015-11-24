@@ -7,7 +7,6 @@ import android.content.DialogInterface;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.Paint;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
 import android.graphics.RectF;
@@ -23,6 +22,7 @@ import android.widget.Toast;
 import com.caverock.androidsvg.SVG;
 import com.caverock.androidsvg.SVGParseException;
 
+import org.opencv.core.Rect;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -56,6 +56,7 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
 
     private final String TAG = "DrawingView";
     private final float scale = 0.78f;
+    private final float scaleUp = 1.28205f;
 
     private String geometryFilename, materialFilename;
     private float offsetX = 0;
@@ -63,27 +64,9 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
     private boolean moving = false;
 
     private final SurfaceHolder surfaceHolder;
-    private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private SVG material, geometry;
     private Uri geometryUri;
     private float materialWidth, materialHeight, geometryWidth, geometryHeight;
-    private Bitmap imageBitmap;
-
-    private class StringContainer{ //Container for a string value
-        private String string;
-
-        StringContainer(String string) {
-            this.string = string;
-        }
-
-        public String getString() {
-            return string;
-        }
-
-        public void setString(String string) {
-            this.string = string;
-        }
-    }
 
     /**
      * Creates a dialog that shows all files in the SVG asset folder and allows the user
@@ -141,26 +124,27 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
             material.renderToCanvas(canvas, material.getDocumentViewBox());
 
             geometry = SVG.getFromAsset(getContext().getAssets(), "SVG/" + geometryFilename);
-            geometryWidth = geometry.getDocumentViewBox().right * scale;
-            geometryHeight = geometry.getDocumentViewBox().bottom * scale;
+            /*geometryWidth = geometry.getDocumentViewBox().right * scale;
+            geometryHeight = geometry.getDocumentViewBox().bottom * scale;*/
 
+            //Scaling up the viewbox of the geometry SVG
+            //This is done so it is possible to do the touch event everywhere on the geometry
+            //It is supposed to scale the SVG itself as well, but does not work in AndroidSVG apparently
+            RectF viewBox = geometry.getDocumentViewBox();
+            float geometryWidth, geometryHeight;
+            geometryWidth = (viewBox.right - viewBox.left) * scaleUp;
+            geometryHeight = (viewBox.bottom - viewBox.top) * scaleUp;
+            geometry.setDocumentViewBox(viewBox.left, viewBox.top, geometryWidth, geometryHeight);
+
+            //Set the geometry width/height attributes to 100%
+            //As with the viewbox settings, this should allow it to scale to the size of the viewbox,
+            //but it does not. Seemingly a bug
             geometry.setDocumentWidth("100%");
             geometry.setDocumentHeight("100%");
 
             geometry.setColorFilter(new PorterDuffColorFilter(Color.BLUE, PorterDuff.Mode.SRC_ATOP));
 
             drawScaled(canvas, geometry, 100f, 100f);
-
-            /*canvas.save(); //Save canvas settings
-
-            //Scale for relative size
-            canvas.scale(scale, scale);
-
-            geometry.setDocumentViewBox(100, 100, geometryWidth, geometryHeight);
-            geometry.setColorFilter(new PorterDuffColorFilter(Color.BLUE, PorterDuff.Mode.SRC_ATOP));
-            geometry.renderToCanvas(canvas, geometry.getDocumentViewBox());
-
-            canvas.restore(); //Restore canvas settings*/
 
             surfaceHolder.unlockCanvasAndPost(canvas);
         } catch (SVGParseException | IOException e) {
@@ -178,18 +162,11 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
             material = SVG.getFromAsset(getContext().getAssets(), "SVG/" + materialFilename);
             materialWidth = material.getDocumentViewBox().right;
             materialHeight = material.getDocumentViewBox().bottom;
-
-            /*geometry = SVG.getFromAsset(getContext().getAssets(), "SVG/shape20cm.svg");
-            geometryWidth = geometry.getDocumentViewBox().right * scale;
-            geometryHeight = geometry.getDocumentViewBox().bottom * scale;*/
-
         } catch (SVGParseException | IOException e) {
             e.printStackTrace();
         }
 
         surfaceHolder = getHolder();
-        paint.setColor(Color.WHITE);
-        paint.setStyle(Paint.Style.FILL);
 
         surfaceHolder.addCallback(this); //SurfaceHolder callback (surfaceCreated, surfaceChanged, surfaceDestroyed)
 
@@ -229,7 +206,9 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
         switch (event.getAction()) { //Switch depending on whether it is the initial touch, a dragging gesture, or the user stops the gesture
             case MotionEvent.ACTION_DOWN: //Initial touch
                 RectF geometryViewBox = geometry.getDocumentViewBox();
-                if (offsetViewBox(geometryViewBox).contains(touchX, touchY)) { //The touch gesture was inside the geometry viewbox
+//                if (offsetViewBox(geometryViewBox).contains(touchX, touchY)) { //The touch gesture was inside the geometry viewbox
+//                if (geometryViewBox.contains(touchX, touchY)) { //The touch gesture was inside the geometry viewbox
+                if (offsetViewBoxScaleUp(geometryViewBox).contains(touchX, touchY)) { //The touch gesture was inside the geometry viewbox
                     moving = true;
                     //Apply color filter to the moving geometry
                     geometry.setColorFilter(new PorterDuffColorFilter(Color.RED, PorterDuff.Mode.SRC_ATOP));
@@ -265,7 +244,6 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
         paint.setStyle(Paint.Style.STROKE);
         paint.setStrokeWidth(5);
         canvas.drawRect(rect, paint);*/
-        this.invalidate();
         surfaceHolder.unlockCanvasAndPost(canvas);
 
         return true;
@@ -280,7 +258,7 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
      */
     private void drawScaled(Canvas canvas, SVG geometry, Float x, Float y) {
         RectF viewBox = geometry.getDocumentViewBox();
-        //Can't figure out why multiplying by scale is not needed here
+
         float geometryWidth = viewBox.right - viewBox.left;
         float geometryHeight = viewBox.bottom - viewBox.top;
 
@@ -288,15 +266,16 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
             x = viewBox.left;
             y = viewBox.top;
         } else { //Divide by scale so it follows the touched position
-            x /= scale;
-            y /= scale;
+            x /= scaleUp;
+            y /= scaleUp;
         }
 
         //Save canvas settings
         canvas.save();
 
         //Scale for relative size
-        canvas.scale(scale, scale);
+//        canvas.scale(scale, scale);
+        canvas.scale(scaleUp, scaleUp);
 
         //Set the viewbox to the touched position
         geometry.setDocumentViewBox(x, y, geometryWidth, geometryHeight);
@@ -329,6 +308,11 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
         return viewBox;
     }
 
+    private RectF offsetViewBoxScaleUp(RectF viewBox) {
+        viewBox.offsetTo(viewBox.left * scaleUp, viewBox.top * scaleUp);
+        return viewBox;
+    }
+
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
         Canvas canvas = surfaceHolder.lockCanvas();
@@ -336,19 +320,6 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
         canvas.drawColor(Color.WHITE); //Fill canvas with white
 
         material.renderToCanvas(canvas, material.getDocumentViewBox());
-
-
-
-        /*canvas.save(); //Save canvas settings
-
-        //Scale for relative size
-        canvas.scale(scale, scale);
-
-        geometry.setDocumentViewBox(100, 100, geometryWidth, geometryHeight);
-        geometry.setColorFilter(new PorterDuffColorFilter(Color.BLUE, PorterDuff.Mode.SRC_ATOP));
-        geometry.renderToCanvas(canvas, geometry.getDocumentViewBox());
-
-        canvas.restore(); //Restore canvas settings*/
 
         surfaceHolder.unlockCanvasAndPost(canvas);
     }
@@ -365,7 +336,7 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
 
     public void menuClicked() {
         Toast.makeText(getContext(), "Saving...", Toast.LENGTH_SHORT).show();
-        combineSVGs(geometry);
+        combineSVGs(geometry); //Prints the SVG to Logcat
 
         /*//Write to permanent file
         File file = new File(Environment.getExternalStorageDirectory().toString()+"/save.png");
@@ -398,7 +369,8 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
 
             for (int i = 0; i < geometryNL.getLength(); i++) {
                 Element node = (Element) geometryNL.item(i);
-                node.setAttribute("stroke", "#FF0000");
+//                node.setAttribute("stroke", "#FF0000");
+                node.setAttribute("style", "fill:none;stroke:#FF0000");
                 String points = node.getAttribute("points");
                 node.setAttribute("points", offsetPoints(geometryX, geometryY, points));
 
@@ -419,8 +391,8 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
         String[] coord;
         for (int i = 0; i < coordinateSets.length; i++) {
             coord = coordinateSets[i].split(",");
-            xCoords[i] = (Float.parseFloat(coord[0]) + x) * scale;
-            yCoords[i] = (Float.parseFloat(coord[1]) + y) * scale;
+            xCoords[i] = (Float.parseFloat(coord[0]) + x) * scaleUp;
+            yCoords[i] = (Float.parseFloat(coord[1]) + y) * scaleUp;
         }
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < coordinateSets.length; i++) {

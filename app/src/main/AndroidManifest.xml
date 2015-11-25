@@ -47,7 +47,9 @@
         </activity>
         <activity android:name=".FindContoursActivity" >
         </activity>
-        <activity android:name=".SVGTestActivity" >
+        <activity android:name=".LoadFromInternalStorageActivity" >
+        </activity>
+        <activity android:name=".SelectMaterialListViewActivity" >
         </activity>
     </application>
 

@@ -11,6 +11,7 @@ import android.os.Environment;
 import android.provider.MediaStore;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.text.method.DigitsKeyListener;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -48,10 +49,9 @@ import java.util.List;
 public class FindContoursActivity extends AppCompatActivity {
 
     private final String TAG = "FindContoursActivity";
-    private Mat canny, blur, morphology, gray, filledContours, warpedPerspective, bilateral, eroded, h, s, v;
+    private Mat canny, blur, morphology, gray, filledContours, warpedPerspective, bilateral, eroded;
     int markerSize = 250;
     Bitmap inputPicture;
-    StringContainer fileName;
     String svgFileString;
     ArrayList<MatOfPoint> contours2;
 
@@ -96,14 +96,6 @@ public class FindContoursActivity extends AppCompatActivity {
         warpedPerspective = new Mat();
         Utils.bitmapToMat(inputPicture, warpedPerspective);
 
-        Mat hsv = new Mat();
-        Imgproc.cvtColor(warpedPerspective, hsv, Imgproc.COLOR_RGB2HSV);
-        List<Mat> channels = new ArrayList<>();
-        Core.split(hsv, channels);
-        h = channels.get(0);
-        s = channels.get(1);
-        v = channels.get(2);
-
         //Finding contours on warped picture
         //Each step has its own mat so we can display them
         //Some of these actions/procedures are destructive as well, which is why some are cloned
@@ -147,12 +139,10 @@ public class FindContoursActivity extends AppCompatActivity {
 
         //http://dsp.stackexchange.com/questions/2564/opencv-c-connect-nearby-contours-based-on-distance-between-them/2618#2618
         //http://stackoverflow.com/questions/19123165/join-close-enough-contours-in-opencv
+        //Morphological closing, joins edges that are close (as defined by the structuring element) to each other
         //Computation heavy calculation
         Mat structuringElement = Imgproc.getStructuringElement(Imgproc.CV_SHAPE_RECT, new Size(4,4));
         Imgproc.morphologyEx(canny, morphology, Imgproc.MORPH_CLOSE, structuringElement, new Point(-1, -1), 2);
-
-//        thinned = zhangSuenThinning(morphology);
-//        thinned.convertTo(thinned, CvType.CV_8UC1);
 
         contours2 = new ArrayList<>();
         Mat hierarchy = new Mat();
@@ -271,15 +261,18 @@ public class FindContoursActivity extends AppCompatActivity {
         Log.i("svgFile", svgFile.toString());
 
         svgFileString = svgFile.toString();
-        svgFileString = svgFileString.replace("#viewBox", "0 0 " + maxX + " " + maxY);
+        svgFileString = svgFileString.replace("#viewBox", "0 0 " + maxX + " " + maxY); //Set viewBox
         Log.i("svgFileString", svgFileString);
-
-
-
 
         Imgproc.drawContours(warpedPerspective, contours2, -1, new Scalar(0, 255, 0), 1/*, Imgproc.LINE_4, hierarchy, 0, new Point(0,0)*/);
 
         setImage(warpedPerspective);
+
+        filledContours = morphology.clone();
+        Core.bitwise_not(filledContours, filledContours); //Invert the picture
+        //Draw contours, -1 thickness is passed as that fills out the contour
+        Imgproc.drawContours(filledContours, contours2, -1, new Scalar(0, 255, 0), -1);
+        Core.bitwise_not(filledContours, filledContours); //Invert again for erosion
 
         //Trying to fill the outermost contour so we could apply erosion to it, need to somehow
         //fill the outmost but not children
@@ -288,7 +281,6 @@ public class FindContoursActivity extends AppCompatActivity {
         Core.bitwise_not(filledContours, filledContours);
         Imgproc.drawContours(filledContours, contours2, -1, new Scalar(0, 255, 0), -1);
         Core.bitwise_not(filledContours, filledContours);
-        //TODO Get the bounding box/viewbox of the geometry and use its coordinates to determine the size of the structuring element
 //        Mat structuringElement2 = Imgproc.getStructuringElement(Imgproc.CV_SHAPE_RECT, new Size(256, 256));
         Mat structuringElement2 = Imgproc.getStructuringElement(Imgproc.CV_SHAPE_RECT, new Size(1024, 1024));
         Imgproc.erode(filledContours, eroded, structuringElement2);
@@ -320,9 +312,6 @@ public class FindContoursActivity extends AppCompatActivity {
         menu.addSubMenu("Filled contours");
         menu.addSubMenu("Bilateral filter");
         menu.addSubMenu("Eroded");
-        menu.addSubMenu("Hue");
-        menu.addSubMenu("Saturation");
-        menu.addSubMenu("Values");
         menu.addSubMenu("Save material");
         menu.addSubMenu("Geometry fit");
 
@@ -364,18 +353,6 @@ public class FindContoursActivity extends AppCompatActivity {
                 Toast.makeText(this, "bilateralFilter", Toast.LENGTH_SHORT).show();
                 setImage(bilateral);
                 break;
-            case "Hue":
-                Toast.makeText(this, "hue", Toast.LENGTH_SHORT).show();
-                setImage(h);
-                break;
-            case "Saturation":
-                Toast.makeText(this, "saturation", Toast.LENGTH_SHORT).show();
-                setImage(s);
-                break;
-            case "Values":
-                Toast.makeText(this, "values", Toast.LENGTH_SHORT).show();
-                setImage(v);
-                break;
             case "Save material":
                 saveFilePromptForFilenameDialog().show();
                 break;
@@ -393,7 +370,11 @@ public class FindContoursActivity extends AppCompatActivity {
         //Title text for the dialog
         builder.setTitle("Enter name of material");
         final EditText fileNameInput = new EditText(this);
+        //Single line only
         fileNameInput.setSingleLine(true);
+        //Only allow regular letters, numbers, and spaces
+        fileNameInput.setKeyListener(DigitsKeyListener.getInstance("ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqrstuvwxyz "));
+        //Hint in EditText
         fileNameInput.setHint("Enter name...");
         builder.setView(fileNameInput);
 
@@ -401,10 +382,14 @@ public class FindContoursActivity extends AppCompatActivity {
         builder.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
-                //TODO Check for empty filename?
-                String input = fileNameInput.getText().toString().trim(); //Get the string entered in the edittext and remove trailing and preceding spaces
-                Toast.makeText(FindContoursActivity.this, input, Toast.LENGTH_SHORT).show();
-                saveFile(input, svgFileString);
+                String input = fileNameInput.getText().toString().trim(); //Get the string entered in the EditText and remove trailing and preceding spaces
+                if (input.equals("")) { //If blank filename was entered
+                    Toast.makeText(FindContoursActivity.this, "Filename was blank, please enter a name.", Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(FindContoursActivity.this, input, Toast.LENGTH_SHORT).show();
+//                    saveFile(input, svgFileString);
+                    saveInternal(input, svgFileString);
+                }
             }
         });
         //Set negative button on the dialog
@@ -420,13 +405,22 @@ public class FindContoursActivity extends AppCompatActivity {
 
     public void saveFile(String fileName, String contents) {
         //Writing to file
-        File file = new File(Environment.getExternalStorageDirectory().toString() + "/" + fileName + ".svg"); //TODO naming
+        File file = new File(Environment.getExternalStorageDirectory().toString() + "/" + fileName + ".svg");
         try {
             FileWriter fileWriter = new FileWriter(file);
             fileWriter.write(contents);
             fileWriter.close();
             MediaScannerConnection.scanFile(this, new String[]{file.getAbsolutePath()}, null, null);
         } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void saveInternal(String filename, String contents) {
+        InternalStorageOperations.save(this, filename, contents, gray, bilateral, canny, morphology, filledContours, warpedPerspective);
+        try {
+            InternalStorageOperations.load(this, filename);
+        } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
         }
     }
@@ -476,7 +470,7 @@ public class FindContoursActivity extends AppCompatActivity {
      * Tests whether a given geometry fits somewhere inside the scanned material
      * @param filename Filename of the file inside Assets folder to test
      */
-    public void testGeometry(String filename) {
+    public void testGeometry(String filename) { //TODO Perhaps add some uncertainty factor, such as adding 2cm to width/height of the geometry
         try {
             SVG geometry = SVG.getFromAsset(this.getAssets(), "SVG/" + filename); //Retrieve SVG
             RectF viewBox = geometry.getDocumentViewBox(); //Get the viewBox of the SVG
@@ -485,13 +479,6 @@ public class FindContoursActivity extends AppCompatActivity {
             float geometryWidth = (viewBox.right - viewBox.left) * scaleUp;
             float geometryHeight = (viewBox.bottom - viewBox.top) * scaleUp;
 
-            filledContours = morphology.clone();
-            Core.bitwise_not(filledContours, filledContours); //Invert the picture
-            //Draw contours, -1 thickness is passed as that fills out the contour
-            Imgproc.drawContours(filledContours, contours2, -1, new Scalar(0, 255, 0), -1);
-            Core.bitwise_not(filledContours, filledContours); //Invert again for erosion
-//            Mat structuringElement2 = Imgproc.getStructuringElement(Imgproc.CV_SHAPE_RECT, new Size(256, 256));
-//            Mat structuringElement2 = Imgproc.getStructuringElement(Imgproc.CV_SHAPE_RECT, new Size(1024, 1024));
             //Structuring element constructed from the width and height of the SVG
             //Could be made more advanced in following the path of the SVG more closely for better fitting
             Mat structuringElement2 = Imgproc.getStructuringElement(Imgproc.CV_SHAPE_RECT, new Size(geometryWidth, geometryHeight));

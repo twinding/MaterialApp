@@ -30,6 +30,8 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -153,18 +155,28 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
 
     }
 
-    public DrawingView(Context context) {
+    public DrawingView(Context context, String filename) {
         super(context);
         createAlertDialog().show();
-        materialFilename = "material.svg";
 
         try {
+            materialFilename = filename + ".svg";
+            File svg = new File(context.getFilesDir(), "svg/" + filename + ".svg");
+            FileInputStream fis = new FileInputStream(svg);
+            material = SVG.getFromInputStream(fis);
+            materialWidth = material.getDocumentViewBox().right;
+            materialHeight = material.getDocumentViewBox().bottom;
+        } catch (FileNotFoundException | SVGParseException e) {
+            e.printStackTrace();
+        }
+
+        /*try {
             material = SVG.getFromAsset(getContext().getAssets(), "SVG/" + materialFilename);
             materialWidth = material.getDocumentViewBox().right;
             materialHeight = material.getDocumentViewBox().bottom;
         } catch (SVGParseException | IOException e) {
             e.printStackTrace();
-        }
+        }*/
 
         surfaceHolder = getHolder();
 
@@ -334,9 +346,10 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
 
     }
 
-    public void menuClicked() {
+    public void save(String filename) {
         Toast.makeText(getContext(), "Saving...", Toast.LENGTH_SHORT).show();
-        combineSVGs(geometry); //Prints the SVG to Logcat
+        InternalStorageOperations.saveSVG(getContext(), filename, combineSVGs(geometry)); //Prints the SVG to Logcat
+        Log.i(TAG, "cutReadySVGs: " + Arrays.toString(new File(getContext().getFilesDir(), "cutReadySVGs").list()));
 
         /*//Write to permanent file
         File file = new File(Environment.getExternalStorageDirectory().toString()+"/save.png");
@@ -350,7 +363,7 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
         }*/
     }
 
-    public void combineSVGs(SVG geometry) {
+    public String combineSVGs(SVG geometry) {
         float geometryX = geometry.getDocumentViewBox().left;
         float geometryY = geometry.getDocumentViewBox().top;
 
@@ -358,7 +371,8 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
         try {
             db = DocumentBuilderFactory.newInstance().newDocumentBuilder();
             Document geometryDoc = db.parse(getContext().getAssets().open("SVG/" + geometryFilename));
-            Document materialDoc = db.parse(getContext().getAssets().open("SVG/" + materialFilename));
+//            Document materialDoc = db.parse(getContext().getAssets().open("SVG/" + materialFilename));
+            Document materialDoc = db.parse(new File(getContext().getFilesDir(), "svg/" + materialFilename));
             XPath xpath = XPathFactory.newInstance().newXPath();
             XPathExpression expr = xpath.compile(".//polygon");
             NodeList geometryNL = (NodeList) expr.evaluate(geometryDoc, XPathConstants.NODESET);
@@ -377,10 +391,11 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
                 Node importNode = materialDoc.importNode(node, true);
                 materialDoc.getDocumentElement().appendChild(importNode);
             }
-            printDocument(materialDoc);
+            return printDocument(materialDoc);
         } catch (ParserConfigurationException | SAXException | IOException | XPathExpressionException e) {
             e.printStackTrace();
         }
+        return null;
     }
 
     public String offsetPoints(float x, float y, String points) {

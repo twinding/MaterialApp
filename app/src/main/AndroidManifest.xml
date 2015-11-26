@@ -51,6 +51,8 @@
         </activity>
         <activity android:name=".SelectMaterialListViewActivity" >
         </activity>
+        <activity android:name=".DisplayPictureActivity" >
+        </activity>
     </application>
 
 </manifest>

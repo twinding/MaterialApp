@@ -51,6 +51,20 @@ public class InternalStorageOperations {
         }
     }
 
+    public static void saveSVG(Context context, String filename, String contents) {
+        try {
+            File directory = new File(context.getFilesDir() + "/cutReadySVGs");
+            directory.mkdirs();
+
+            File file = new File(context.getFilesDir(), "cutReadySVGs/" + filename + ".svg");
+            FileWriter fileWriter = new FileWriter(file);
+            fileWriter.write(contents);
+            fileWriter.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     public static OpenCVDataContainer load(Context context, String filename) throws IOException, ClassNotFoundException {
         /*File svgDir = new File(context.getFilesDir(), "svg");
         File opencvdataDir = new File(context.getFilesDir(), "opencvdata");

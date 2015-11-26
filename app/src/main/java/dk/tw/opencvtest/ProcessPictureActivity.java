@@ -153,6 +153,11 @@ public class ProcessPictureActivity extends AppCompatActivity {
         }
 
         Log.d("Test", "Contours size after work: " + contours.size());
+        if (contours.size() <= 0) { //If the marker is not visible in the picture
+            Toast.makeText(this, "Invalid picture, please try again", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
 
         //Find the largest contour
         MatOfPoint largestContour = contours.get(0);

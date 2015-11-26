@@ -3,6 +3,7 @@ package dk.tw.opencvtest;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.RectF;
 import android.support.v7.app.AppCompatActivity;
@@ -29,11 +30,14 @@ import java.io.IOException;
 public class LoadFromInternalStorageActivity extends AppCompatActivity {
 
     private Mat gray, bilateral, canny, morphology, filledContours, warpedPerspective, eroded;
+    private String filename;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_load_from_internal_storage);
+
+        filename = getIntent().getExtras().getString("fileToLoad");
     }
 
     @Override
@@ -47,17 +51,17 @@ public class LoadFromInternalStorageActivity extends AppCompatActivity {
         public void onManagerConnected(int status) {
             if (status == LoaderCallbackInterface.SUCCESS ) {
                 // OpenCV code can now be called
-                init();
+                init(filename);
             } else {
                 super.onManagerConnected(status);
             }
         }
     };
 
-    public void init() {
+    public void init(String fileToLoad) {
         try {
             eroded = new Mat();
-            OpenCVDataContainer data = InternalStorageOperations.load(this, "test1");
+            OpenCVDataContainer data = InternalStorageOperations.load(this, fileToLoad);
             gray = data.getGray();
             bilateral = data.getBilateral();
             canny = data.getCanny();
@@ -88,6 +92,7 @@ public class LoadFromInternalStorageActivity extends AppCompatActivity {
         menu.addSubMenu("Bilateral filter");
         menu.addSubMenu("Eroded");
         menu.addSubMenu("Test geometry");
+        menu.addSubMenu("Add geometry");
 
 
         return super.onCreateOptionsMenu(menu);
@@ -121,11 +126,20 @@ public class LoadFromInternalStorageActivity extends AppCompatActivity {
                 setImage(bilateral);
                 break;
             case "Eroded":
-                Toast.makeText(this, "eroded", Toast.LENGTH_SHORT).show();
-                setImage(eroded);
+                if (eroded.height() <= 0 || eroded.width() <= 0) {
+                    Toast.makeText(this, "Not available till a geometry has been tested", Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(this, "eroded", Toast.LENGTH_SHORT).show();
+                    setImage(eroded);
+                }
                 break;
             case "Test geometry":
                 pickGeometryToTestDialog().show();
+                break;
+            case "Add geometry":
+                Intent intent = new Intent(this, DrawingActivity.class);
+                intent.putExtra("filename", filename);
+                startActivity(intent);
                 break;
         }
 

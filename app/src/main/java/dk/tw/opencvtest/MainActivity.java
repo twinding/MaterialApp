@@ -18,6 +18,7 @@ public class MainActivity extends AppCompatActivity {
 
     public void startDrawingActivity(View view) {
         Intent intent = new Intent(this, DrawingActivity.class);
+        intent.putExtra("filename", "test1");
         startActivity(intent);
     }
 

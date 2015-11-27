@@ -10,11 +10,11 @@ public class DisplayPictureActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
+        //Get info on where to load from, and which file
         String loadFrom = getIntent().getExtras().getString("loadFrom");
         String filename = getIntent().getExtras().getString("fileToLoad");
-        displayPictureView = new DisplayPictureView(this, loadFrom, filename);
 
+        displayPictureView = new DisplayPictureView(this, loadFrom, filename);
         setContentView(displayPictureView);
     }
 }

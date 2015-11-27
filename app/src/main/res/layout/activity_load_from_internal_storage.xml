@@ -1,10 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout
+<LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context="dk.tw.opencvtest.LoadFromInternalStorageActivity">
+    tools:context="dk.tw.opencvtest.LoadFromInternalStorageActivity"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <Button
+            android:onClick="testGeometryButton"
+            android:text="Fit test CAD file"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            style="?android:attr/buttonBarButtonStyle"/>
+
+        <View style="@style/VerticalDivider"/>
+
+        <Button
+            android:onClick="addGeometryButton"
+            android:text="Place CAD file"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            style="?android:attr/buttonBarButtonStyle"/>
+
+    </LinearLayout>
+
+    <View style="@style/HorizontalDivider"/>
 
     <ImageView
         android:id="@+id/imageView"
@@ -12,4 +39,4 @@
         android:layout_height="match_parent"
         tools:ignore="ContentDescription" />
 
-</RelativeLayout>
+</LinearLayout>

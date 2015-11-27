@@ -3,6 +3,7 @@ package dk.tw.opencvtest;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.RectF;
 import android.media.MediaScannerConnection;
@@ -15,6 +16,7 @@ import android.text.method.DigitsKeyListener;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.Toast;
@@ -364,6 +366,14 @@ public class FindContoursActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
+    public void saveMaterialButton(View view) {
+        saveFilePromptForFilenameDialog().show();
+    }
+
+    public void testGeometryButton(View view) {
+        pickGeometryToTestDialog().show();
+    }
+
     private Dialog saveFilePromptForFilenameDialog() {
         //Get builder
         final AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -386,9 +396,13 @@ public class FindContoursActivity extends AppCompatActivity {
                 if (input.equals("")) { //If blank filename was entered
                     Toast.makeText(FindContoursActivity.this, "Filename was blank, please enter a name.", Toast.LENGTH_SHORT).show();
                 } else {
-                    Toast.makeText(FindContoursActivity.this, input, Toast.LENGTH_SHORT).show();
+//                    Toast.makeText(FindContoursActivity.this, input, Toast.LENGTH_SHORT).show();
 //                    saveFile(input, svgFileString);
                     saveInternal(input, svgFileString);
+                    //Return to main menu
+                    Intent intent = new Intent(FindContoursActivity.this, MainActivity.class);
+                    intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                    startActivity(intent);
                 }
             }
         });

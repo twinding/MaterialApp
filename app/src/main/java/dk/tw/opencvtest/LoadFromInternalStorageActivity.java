@@ -10,6 +10,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 import android.widget.ImageView;
 import android.widget.Toast;
 
@@ -144,6 +145,16 @@ public class LoadFromInternalStorageActivity extends AppCompatActivity {
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    public void testGeometryButton(View view) {
+        pickGeometryToTestDialog().show();
+    }
+
+    public  void addGeometryButton(View view) {
+        Intent intent = new Intent(this, DrawingActivity.class);
+        intent.putExtra("filename", filename);
+        startActivity(intent);
     }
 
     /**

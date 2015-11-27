@@ -26,7 +26,8 @@
         </activity>
         <activity
             android:name=".DrawingActivity"
-            android:label="@string/title_activity_drawing" >
+            android:label="@string/title_activity_drawing"
+            android:theme="@style/NoActionBarTheme">
         </activity>
         <activity android:name=".WarpPictureInMemoryActivity" >
         </activity>
@@ -43,15 +44,23 @@
             android:theme="@style/FullScreenTheme" >
         </activity>
         <activity android:name="com.soundcloud.android.crop.CropImageActivity" />
-        <activity android:name=".CropPictureActivity" >
+        <activity android:name=".CropPictureActivity"
+            android:configChanges="orientation|screenSize"
+            android:screenOrientation="landscape">
         </activity>
-        <activity android:name=".FindContoursActivity" >
+        <activity android:name=".FindContoursActivity"
+            android:configChanges="orientation|screenSize"
+            android:screenOrientation="landscape"
+            android:theme="@style/NoActionBarTheme">
         </activity>
-        <activity android:name=".LoadFromInternalStorageActivity" >
+        <activity android:name=".LoadFromInternalStorageActivity"
+            android:theme="@style/NoActionBarTheme">
         </activity>
-        <activity android:name=".SelectMaterialListViewActivity" >
+        <activity android:name=".SelectMaterialListViewActivity"
+            android:theme="@style/NoActionBarTheme">
         </activity>
-        <activity android:name=".DisplayPictureActivity" >
+        <activity android:name=".DisplayPictureActivity"
+            android:theme="@style/NoActionBarTheme">
         </activity>
     </application>
 

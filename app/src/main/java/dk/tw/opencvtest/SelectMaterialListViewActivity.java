@@ -1,6 +1,7 @@
 package dk.tw.opencvtest;
 
 import android.content.Intent;
+import android.graphics.Paint;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.Menu;
@@ -62,6 +63,84 @@ public class SelectMaterialListViewActivity extends AppCompatActivity {
                 loadButtonScannedMaterials();
             }
         });
+
+        setActiveButton("materials");
+    }
+
+    public void materialsButton(View view) {
+        setActiveButton("materials");
+
+        //Set adapter
+        listView.setAdapter(openCvDataAdapter);
+        //Set first item as selected
+        listView.setItemChecked(0, true);
+        //Set method to be called when load button is pressed
+        button.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                loadButtonScannedMaterials();
+            }
+        });
+    }
+
+    public void cadFilesButton(View view) {
+        setActiveButton("cadfiles");
+
+        //Set adapter
+        listView.setAdapter(geometriesAdapter);
+        //Set first item as selected
+        listView.setItemChecked(0, true);
+        //Set method to be called when load button is pressed
+        button.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                loadButtonGeometries();
+            }
+        });
+    }
+
+    public void readyCutsButton(View view) {
+        setActiveButton("readycuts");
+
+        //Set adapter
+        listView.setAdapter(cutReadySvgsAdapter);
+        //Set first item as selected
+        listView.setItemChecked(0, true);
+        //Set method to be called when load button is pressed
+        button.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                loadButtonReadyCuts();
+            }
+        });
+    }
+
+    private void setActiveButton(String which) {
+        Button materialsButton, cadFilesButton, readyCutsButton;
+        materialsButton = (Button) findViewById(R.id.materialsButton);
+        cadFilesButton = (Button) findViewById(R.id.cadFilesButton);
+        readyCutsButton = (Button) findViewById(R.id.readyCutsButton);
+
+        materialsButton.setPaintFlags(0);
+        cadFilesButton.setPaintFlags(0);
+        readyCutsButton.setPaintFlags(0);
+
+        switch (which) {
+            case "materials":
+                setTitle("Scanned materials");
+                materialsButton.setPaintFlags(materialsButton.getPaintFlags() | Paint.UNDERLINE_TEXT_FLAG);
+                break;
+            case "cadfiles":
+                setTitle("CAD files");
+                cadFilesButton.setPaintFlags(cadFilesButton.getPaintFlags() | Paint.UNDERLINE_TEXT_FLAG);
+                break;
+            case "readycuts":
+                setTitle("Ready cuts");
+                readyCutsButton.setPaintFlags(readyCutsButton.getPaintFlags() | Paint.UNDERLINE_TEXT_FLAG);
+                break;
+        }
+
+
     }
 
     public void loadButtonScannedMaterials() {
@@ -117,7 +196,7 @@ public class SelectMaterialListViewActivity extends AppCompatActivity {
                 });
                 break;
             case "Geometries":
-                Toast.makeText(this, "Ready cuts", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Geometries", Toast.LENGTH_SHORT).show();
 
                 //Set adapter
                 listView.setAdapter(geometriesAdapter);

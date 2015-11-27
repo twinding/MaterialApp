@@ -9,6 +9,48 @@
     tools:context="dk.tw.opencvtest.SelectMaterialListViewActivity"
     android:orientation="vertical">
 
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        style="?android:attr/buttonBarStyle"
+        android:divider="?android:dividerHorizontal"
+        android:showDividers="middle">
+
+        <Button
+            android:id="@+id/materialsButton"
+            android:onClick="materialsButton"
+            android:text="Materials"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            style="?android:attr/buttonBarButtonStyle"/>
+
+        <View style="@style/VerticalDivider"/>
+
+        <Button
+            android:id="@+id/cadFilesButton"
+            android:onClick="cadFilesButton"
+            android:text="CAD files"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            style="?android:attr/buttonBarButtonStyle"/>
+
+        <View style="@style/VerticalDivider"/>
+
+        <Button
+            android:id="@+id/readyCutsButton"
+            android:onClick="readyCutsButton"
+            android:text="Ready cuts"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            style="?android:attr/buttonBarButtonStyle"/>
+
+    </LinearLayout>
+
+    <View style="@style/HorizontalDivider"/>
+
     <ListView
         android:id="@+id/listView"
         android:layout_width="match_parent"
@@ -18,9 +60,11 @@
         android:dividerHeight="2dp"
         android:layout_weight="1"/>
 
+    <View style="@style/HorizontalDivider"/>
+
     <Button
         android:id="@+id/loadButton"
-        android:text="Load"
+        android:text="Open"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_weight="0"/>

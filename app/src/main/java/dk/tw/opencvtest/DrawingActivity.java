@@ -8,6 +8,7 @@ import android.os.Bundle;
 import android.text.method.DigitsKeyListener;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 import android.widget.EditText;
 import android.widget.Toast;
 
@@ -18,10 +19,9 @@ public class DrawingActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_drawing);
 
-        String filename = getIntent().getExtras().getString("filename");
-        drawingView = new DrawingView(this, filename);
-        setContentView(drawingView);
+        drawingView = (DrawingView) findViewById(R.id.drawingView);
     }
 
     @Override
@@ -29,6 +29,10 @@ public class DrawingActivity extends AppCompatActivity {
         menu.addSubMenu("Save");
 
         return super.onCreateOptionsMenu(menu);
+    }
+
+    public void saveButton(View view) {
+        saveFilePromptForFilenameDialog().show();
     }
 
     @Override
@@ -64,7 +68,7 @@ public class DrawingActivity extends AppCompatActivity {
                 if (input.equals("")) { //If blank filename was entered
                     Toast.makeText(DrawingActivity.this, "Filename was blank, please enter a name.", Toast.LENGTH_SHORT).show();
                 } else {
-                    Toast.makeText(DrawingActivity.this, input, Toast.LENGTH_SHORT).show();
+//                    Toast.makeText(DrawingActivity.this, input, Toast.LENGTH_SHORT).show();
                     drawingView.save(input);
                 }
             }

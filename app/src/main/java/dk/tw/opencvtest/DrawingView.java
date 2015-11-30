@@ -1,9 +1,12 @@
 package dk.tw.opencvtest;
 
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
+import android.content.res.TypedArray;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -12,7 +15,9 @@ import android.graphics.PorterDuffColorFilter;
 import android.graphics.RectF;
 import android.media.MediaScannerConnection;
 import android.net.Uri;
+import android.os.Bundle;
 import android.os.Environment;
+import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
@@ -155,6 +160,57 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
 
     }
 
+    public DrawingView(Context context) {
+        super(context);
+
+        createAlertDialog().show();
+
+        //Get extras from the Activity
+        Bundle transporter = ((Activity) getContext()).getIntent().getExtras();
+        //Get the filename
+        String filename = transporter.getString("filename");
+        //Fetch the file
+        try {
+            materialFilename = filename + ".svg";
+            File svg = new File(context.getFilesDir(), "svg/" + filename + ".svg");
+            FileInputStream fis = new FileInputStream(svg);
+            material = SVG.getFromInputStream(fis);
+            materialWidth = material.getDocumentViewBox().right;
+            materialHeight = material.getDocumentViewBox().bottom;
+        } catch (FileNotFoundException | SVGParseException e) {
+            e.printStackTrace();
+        }
+        //Get the SurfaceHolder for drawing
+        surfaceHolder = getHolder();
+        //Set this class as the callback for the SurfaceHolder callbacks
+        surfaceHolder.addCallback(this);
+    }
+
+    public DrawingView(Context context, AttributeSet attrs) {
+        super(context, attrs);
+        createAlertDialog().show();
+        //Get extras from the Activity
+        Bundle transporter = ((Activity) getContext()).getIntent().getExtras();
+        //Get the filename
+        String filename = transporter.getString("filename");
+        //Fetch the file
+        try {
+            materialFilename = filename + ".svg";
+            File svg = new File(context.getFilesDir(), "svg/" + filename + ".svg");
+            FileInputStream fis = new FileInputStream(svg);
+            material = SVG.getFromInputStream(fis);
+            materialWidth = material.getDocumentViewBox().right;
+            materialHeight = material.getDocumentViewBox().bottom;
+        } catch (FileNotFoundException | SVGParseException e) {
+            e.printStackTrace();
+        }
+        //Get the SurfaceHolder for drawing
+        surfaceHolder = getHolder();
+        //Set this class as the callback for the SurfaceHolder callbacks
+        surfaceHolder.addCallback(this);
+    }
+
+    //Custom constructors are supposedly bad practice
     public DrawingView(Context context, String filename) {
         super(context);
         createAlertDialog().show();
@@ -347,9 +403,14 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     public void save(String filename) {
-        Toast.makeText(getContext(), "Saving...", Toast.LENGTH_SHORT).show();
+        Toast.makeText(getContext(), "Saved!", Toast.LENGTH_SHORT).show();
         InternalStorageOperations.saveSVG(getContext(), filename, combineSVGs(geometry)); //Prints the SVG to Logcat
         Log.i(TAG, "cutReadySVGs: " + Arrays.toString(new File(getContext().getFilesDir(), "cutReadySVGs").list()));
+
+        //Return to main menu
+        Intent intent = new Intent(getContext(), MainActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        getContext().startActivity(intent);
 
         /*//Write to permanent file
         File file = new File(Environment.getExternalStorageDirectory().toString()+"/save.png");

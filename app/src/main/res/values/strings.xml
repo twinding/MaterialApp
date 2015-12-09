@@ -4,4 +4,7 @@
     <string name="hello_world">Hello world!</string>
     <string name="action_settings">Settings</string>
     <string name="title_activity_drawing">DrawingActivity</string>
+    <string name="warpedPerspective">Perspective transformed image</string>
+    <string name="modelFitting">Model fitting</string>
+    <string name="guidingSizes">Guiding sizes</string>
 </resources>

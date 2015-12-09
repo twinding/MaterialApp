@@ -27,6 +27,15 @@
             android:layout_weight="1"
             style="?android:attr/buttonBarButtonStyle"/>
 
+        <View style="@style/VerticalDivider"/>
+
+        <ImageButton
+            android:src="@android:drawable/ic_menu_sort_by_size"
+            android:onClick="menuButton"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            style="?android:attr/buttonBarButtonStyle"/>
+
     </LinearLayout>
 
     <View style="@style/HorizontalDivider"/>

@@ -12,13 +12,14 @@ import android.os.Environment;
 import android.provider.MediaStore;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.text.method.DigitsKeyListener;
+import android.text.InputFilter;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.PopupMenu;
 import android.widget.Toast;
 
 import com.caverock.androidsvg.SVG;
@@ -389,6 +390,34 @@ public class FindContoursActivity extends AppCompatActivity {
         pickGeometryToTestDialog().show();
     }
 
+    public void menuButton(View view) {
+        PopupMenu popupMenu = new PopupMenu(this, view);
+        popupMenu.getMenuInflater().inflate(R.menu.popup, popupMenu.getMenu());
+
+        popupMenu.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
+            @Override
+            public boolean onMenuItemClick(MenuItem item) {
+                switch (item.getItemId()) {
+                    case R.id.warpedPerspective:
+                        setImage(warpedPerspective);
+                        break;
+                    case R.id.guidingSizes:
+                        setImage(imageWithGuidingSizes);
+                        break;
+                    case R.id.modelFitting:
+                        if (imageWithModelFitting == null) {
+                            Toast.makeText(FindContoursActivity.this, "No model has been selected.", Toast.LENGTH_SHORT).show();
+                            break;
+                        }
+                        setImage(imageWithModelFitting);
+                        break;
+                }
+                return true;
+            }
+        });
+        popupMenu.show();
+    }
+
     private Dialog saveFilePromptForFilenameDialog() {
         //Get builder
         final AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -398,7 +427,7 @@ public class FindContoursActivity extends AppCompatActivity {
         //Single line only
         fileNameInput.setSingleLine(true);
         //Only allow regular letters, numbers, and spaces
-        fileNameInput.setKeyListener(DigitsKeyListener.getInstance("ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqrstuvwxyz "));
+        fileNameInput.setFilters(new InputFilter[]{new SaveInputFilter()});
         //Hint in EditText
         fileNameInput.setHint("Enter name...");
         builder.setView(fileNameInput);
@@ -414,6 +443,7 @@ public class FindContoursActivity extends AppCompatActivity {
 //                    Toast.makeText(FindContoursActivity.this, input, Toast.LENGTH_SHORT).show();
 //                    saveFile(input, svgFileString);
                     saveInternal(input, svgFileString);
+                    Toast.makeText(FindContoursActivity.this, "Saved!", Toast.LENGTH_SHORT).show();
                     //Return to main menu
                     Intent intent = new Intent(FindContoursActivity.this, MainActivity.class);
                     intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);

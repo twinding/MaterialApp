@@ -149,14 +149,14 @@ public class SelectMaterialListViewActivity extends AppCompatActivity {
     }
 
     public void loadButtonScannedMaterials() {
-        Toast.makeText(this, listView.getAdapter().getItem(listView.getCheckedItemPosition()).toString(), Toast.LENGTH_SHORT).show();
+//        Toast.makeText(this, listView.getAdapter().getItem(listView.getCheckedItemPosition()).toString(), Toast.LENGTH_SHORT).show();
         Intent intent = new Intent(this, LoadFromInternalStorageActivity.class);
         intent.putExtra("fileToLoad", listView.getAdapter().getItem(listView.getCheckedItemPosition()).toString());
         startActivity(intent);
     }
 
     public void loadButtonReadyCuts() {
-        Toast.makeText(this, "Load ready cuts", Toast.LENGTH_SHORT).show();
+//        Toast.makeText(this, "Load ready cuts", Toast.LENGTH_SHORT).show();
         Intent intent = new Intent(this, DisplayPictureActivity.class);
         intent.putExtra("loadFrom", "internal");
         intent.putExtra("fileToLoad", listView.getAdapter().getItem(listView.getCheckedItemPosition()).toString());
@@ -164,7 +164,7 @@ public class SelectMaterialListViewActivity extends AppCompatActivity {
     }
 
     public void loadButtonGeometries() {
-        Toast.makeText(this, "Load geometries", Toast.LENGTH_SHORT).show();
+//        Toast.makeText(this, "Load geometries", Toast.LENGTH_SHORT).show();
         Intent intent = new Intent(this, DisplayPictureActivity.class);
         intent.putExtra("loadFrom", "assets");
         intent.putExtra("fileToLoad", listView.getAdapter().getItem(listView.getCheckedItemPosition()).toString());

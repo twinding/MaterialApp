@@ -5,7 +5,7 @@ import android.app.Dialog;
 import android.content.DialogInterface;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.text.method.DigitsKeyListener;
+import android.text.InputFilter;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -55,7 +55,7 @@ public class DrawingActivity extends AppCompatActivity {
         //Single line only
         fileNameInput.setSingleLine(true);
         //Only allow regular letters, numbers, and spaces
-        fileNameInput.setKeyListener(DigitsKeyListener.getInstance("ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqrstuvwxyz "));
+        fileNameInput.setFilters(new InputFilter[]{new SaveInputFilter()});
         //Hint in EditText
         fileNameInput.setHint("Enter name...");
         builder.setView(fileNameInput);

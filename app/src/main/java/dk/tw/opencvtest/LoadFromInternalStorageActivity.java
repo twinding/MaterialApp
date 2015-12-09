@@ -8,10 +8,12 @@ import android.graphics.Bitmap;
 import android.graphics.RectF;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageView;
+import android.widget.PopupMenu;
 import android.widget.Toast;
 
 import com.caverock.androidsvg.SVG;
@@ -170,10 +172,38 @@ public class LoadFromInternalStorageActivity extends AppCompatActivity {
         pickGeometryToTestDialog().show();
     }
 
-    public  void addGeometryButton(View view) {
+    public void addGeometryButton(View view) {
         Intent intent = new Intent(this, DrawingActivity.class);
         intent.putExtra("filename", filename);
         startActivity(intent);
+    }
+
+    public void menuButton(View view) {
+        PopupMenu popupMenu = new PopupMenu(this, view);
+        popupMenu.getMenuInflater().inflate(R.menu.popup, popupMenu.getMenu());
+
+        popupMenu.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
+            @Override
+            public boolean onMenuItemClick(MenuItem item) {
+                switch (item.getItemId()) {
+                    case R.id.warpedPerspective:
+                        setImage(warpedPerspective);
+                        break;
+                    case R.id.guidingSizes:
+                        setImage(imageWithGuidingSizes);
+                        break;
+                    case R.id.modelFitting:
+                        if (imageWithModelFitting == null) {
+                            Toast.makeText(LoadFromInternalStorageActivity.this, "No model has been selected.", Toast.LENGTH_SHORT).show();
+                            break;
+                        }
+                        setImage(imageWithModelFitting);
+                        break;
+                }
+                return true;
+            }
+        });
+        popupMenu.show();
     }
 
     /**

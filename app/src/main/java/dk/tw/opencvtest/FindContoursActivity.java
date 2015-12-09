@@ -446,7 +446,7 @@ public class FindContoursActivity extends AppCompatActivity {
     }
 
     public void saveInternal(String filename, String contents) {
-        InternalStorageOperations.save(this, filename, contents, gray, bilateral, canny, morphology, filledContours, imageWithGuidingSizes);
+        InternalStorageOperations.save(this, filename, contents, gray, bilateral, canny, morphology, filledContours, imageWithGuidingSizes, warpedPerspective);
         try {
             InternalStorageOperations.load(this, filename);
         } catch (IOException | ClassNotFoundException e) {
@@ -487,7 +487,7 @@ public class FindContoursActivity extends AppCompatActivity {
         builder.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
-                Toast.makeText(FindContoursActivity.this, selectedItem.getString(), Toast.LENGTH_SHORT).show();
+//                Toast.makeText(FindContoursActivity.this, selectedItem.getString(), Toast.LENGTH_SHORT).show();
                 testGeometry(selectedItem.getString());
             }
         });
@@ -529,7 +529,8 @@ public class FindContoursActivity extends AppCompatActivity {
             Imgproc.drawContours(erosionDrawing, erosionContours, -1, new Scalar(0, 0, 255), -1);
             //Blend the two images, which creates a transparent look of the drawn contour
             Core.addWeighted(erosionDrawing, 0.3, imageWithModelFitting, 1 - 0.3, 0.0, imageWithModelFitting);
-
+            //Show the image with the model fitting
+            setImage(imageWithModelFitting);
         } catch (SVGParseException | IOException e) {
             e.printStackTrace();
         }

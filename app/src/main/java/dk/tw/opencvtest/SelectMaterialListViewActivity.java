@@ -33,12 +33,15 @@ public class SelectMaterialListViewActivity extends AppCompatActivity {
 
         //Get directory of the saved cuts, combined geometries and materials
         File cutReadySvgsDir = new File(getFilesDir(), "cutReadySVGs");
+        //Check if list is null (empty), and return empty String array if so
+        String[] cutReadySvgs = cutReadySvgsDir.list() == null ? new String[]{} : cutReadySvgsDir.list();
         //Set up adapter for switching the list view to showing the saved cuts
-        cutReadySvgsAdapter = new ArrayAdapter<>(this, R.layout.list_item_custom, android.R.id.text1, cutReadySvgsDir.list());
+        cutReadySvgsAdapter = new ArrayAdapter<>(this, R.layout.list_item_custom, android.R.id.text1, cutReadySvgs);
 
         try {
             //Get list of saved geometry SVGs, they're stored in the assets folder, so it is slightly different from the other saved items
-            String[] geometryList = getAssets().list("SVG");
+//            String[] geometryList = getAssets().list("SVG");
+            String[] geometryList = getAssets().list("SVG") == null ? new String[]{} : getAssets().list("SVG");
             //Set up adapter for switching the view to showing geometries
             geometriesAdapter = new ArrayAdapter<>(this, R.layout.list_item_custom, android.R.id.text1, geometryList);
         } catch (IOException e) {
@@ -50,8 +53,10 @@ public class SelectMaterialListViewActivity extends AppCompatActivity {
 
         //Get directory of saved OpenCV data (materials), files are named the same as their respective SVGs
         File opencvdataDir = new File(getFilesDir(), "opencvdata");
+        //Check if list is null (empty), and return empty String array if so
+        String[] openCvData = opencvdataDir.list() == null ? new String[]{} : opencvdataDir.list();
         //Set up the initial adapter of the list view, the saved materials
-        openCvDataAdapter = new ArrayAdapter<>(this, R.layout.list_item_custom, android.R.id.text1, opencvdataDir.list());
+        openCvDataAdapter = new ArrayAdapter<>(this, R.layout.list_item_custom, android.R.id.text1, openCvData);
         listView.setAdapter(openCvDataAdapter);
         //Set the first item in the list to be selected
         listView.setItemChecked(0, true);

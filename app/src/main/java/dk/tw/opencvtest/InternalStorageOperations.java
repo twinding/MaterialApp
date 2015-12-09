@@ -22,7 +22,7 @@ import java.util.HashMap;
 public class InternalStorageOperations {
     public static boolean saveExternal = false;
 
-    public static void save(Context context, String filename, String contents, Mat gray, Mat bilateral, Mat canny, Mat morphology, Mat filledContours, Mat warpedPerspective) {
+    public static void save(Context context, String filename, String contents, Mat gray, Mat bilateral, Mat canny, Mat morphology, Mat filledContours, Mat imageWithGuidingSizes, Mat warpedPerspective) {
         if (saveExternal) {
             saveExternal(gray, "gray.png", context);
             saveExternal(bilateral, "bilateral.png", context);
@@ -30,6 +30,7 @@ public class InternalStorageOperations {
             saveExternal(bilateral, "bilateral.png", context);
             saveExternal(morphology, "morphology.png", context);
             saveExternal(filledContours, "filledContours.png", context);
+            saveExternal(imageWithGuidingSizes, "imageWithGuidingSizes.png", context);
             saveExternal(warpedPerspective, "warpedPerspective.png", context);
         }
 
@@ -39,6 +40,7 @@ public class InternalStorageOperations {
         matHashMap.put("canny", new SerializableMat(canny));
         matHashMap.put("morphology", new SerializableMat(morphology));
         matHashMap.put("filledContours", new SerializableMat(filledContours));
+        matHashMap.put("imageWithGuidingSizes", new SerializableMat(imageWithGuidingSizes));
         matHashMap.put("warpedPerspective", new SerializableMat(warpedPerspective));
 
         try {
@@ -98,7 +100,7 @@ public class InternalStorageOperations {
     }
 
     private static OpenCVDataContainer convertToOpenCVDataContainer(HashMap<String, SerializableMat> map) {
-        Mat gray, bilateral, canny, morphology, filledContours, warpedPerspective;
+        Mat gray, bilateral, canny, morphology, filledContours, imageWithGuidingSizes, warpedPerspective;
 
         SerializableMat sMat = map.get("gray");
         gray = new Mat(sMat.getRows(), sMat.getCols(), sMat.getType());
@@ -120,11 +122,15 @@ public class InternalStorageOperations {
         filledContours = new Mat(sMat.getRows(), sMat.getCols(), sMat.getType());
         filledContours.put(0, 0, sMat.getBytes());
 
+        sMat = map.get("imageWithGuidingSizes");
+        imageWithGuidingSizes = new Mat(sMat.getRows(), sMat.getCols(), sMat.getType());
+        imageWithGuidingSizes.put(0, 0, sMat.getBytes());
+
         sMat = map.get("warpedPerspective");
         warpedPerspective = new Mat(sMat.getRows(), sMat.getCols(), sMat.getType());
         warpedPerspective.put(0, 0, sMat.getBytes());
 
-        return new OpenCVDataContainer(gray, bilateral, canny, morphology, filledContours, warpedPerspective);
+        return new OpenCVDataContainer(gray, bilateral, canny, morphology, filledContours, imageWithGuidingSizes, warpedPerspective);
     }
 
     private static class SerializableMat implements Serializable {

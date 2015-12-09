@@ -23,14 +23,18 @@ import org.opencv.android.OpenCVLoader;
 import org.opencv.android.Utils;
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
+import org.opencv.core.MatOfPoint;
+import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class LoadFromInternalStorageActivity extends AppCompatActivity {
 
-    private Mat gray, bilateral, canny, morphology, filledContours, warpedPerspective, eroded;
+    private Mat gray, bilateral, canny, morphology, filledContours, imageWithGuidingSizes, eroded, warpedPerspective, imageWithModelFitting;
     private String filename;
 
     @Override
@@ -68,9 +72,10 @@ public class LoadFromInternalStorageActivity extends AppCompatActivity {
             canny = data.getCanny();
             morphology = data.getMorphology();
             filledContours = data.getFilledContours();
+            imageWithGuidingSizes = data.getImageWithGuidingSizes();
             warpedPerspective = data.getWarpedPerspective();
 
-            setImage(warpedPerspective);
+            setImage(imageWithGuidingSizes);
         } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
         }
@@ -86,6 +91,8 @@ public class LoadFromInternalStorageActivity extends AppCompatActivity {
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         menu.addSubMenu("Warped perspective");
+        menu.addSubMenu("Guiding sizes");
+        menu.addSubMenu("Model fitting");
         menu.addSubMenu("Canny");
         menu.addSubMenu("Gray");
         menu.addSubMenu("Morphology");
@@ -105,6 +112,18 @@ public class LoadFromInternalStorageActivity extends AppCompatActivity {
             case "Warped perspective":
                 Toast.makeText(this, "warped perspective", Toast.LENGTH_SHORT).show();
                 setImage(warpedPerspective);
+                break;
+            case "Guiding sizes":
+                Toast.makeText(this, "guiding sizes", Toast.LENGTH_SHORT).show();
+                setImage(imageWithGuidingSizes);
+                break;
+            case "Model fitting":
+                Toast.makeText(this, "model fitting", Toast.LENGTH_SHORT).show();
+                if (imageWithModelFitting == null) {
+                    Toast.makeText(this, "No model selected.", Toast.LENGTH_SHORT).show();
+                    break;
+                }
+                setImage(imageWithModelFitting);
                 break;
             case "Canny":
                 Toast.makeText(this, "canny", Toast.LENGTH_SHORT).show();
@@ -190,7 +209,7 @@ public class LoadFromInternalStorageActivity extends AppCompatActivity {
         builder.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
-                Toast.makeText(LoadFromInternalStorageActivity.this, selectedItem.getString(), Toast.LENGTH_SHORT).show();
+//                Toast.makeText(LoadFromInternalStorageActivity.this, selectedItem.getString(), Toast.LENGTH_SHORT).show();
                 testGeometry(selectedItem.getString());
             }
         });
@@ -218,6 +237,21 @@ public class LoadFromInternalStorageActivity extends AppCompatActivity {
             if (Core.countNonZero(eroded) < 1) { //Check if anything is left after eroding, if there is, the SVG fits
                 Toast.makeText(this, "Your model does not fit.", Toast.LENGTH_SHORT).show();
             } else Toast.makeText(this, "Your model fits!", Toast.LENGTH_SHORT).show();
+
+            //Constructing an image to show the user where the origin/centerpoint of their model can be placed to fit the model
+            //Copy perspective transformed image
+            imageWithModelFitting = warpedPerspective.clone();
+            //Finding a contour to draw from the erosion image
+            List<MatOfPoint> erosionContours = new ArrayList<>();
+            Imgproc.findContours(eroded, erosionContours, new Mat(), Imgproc.RETR_LIST, Imgproc.CHAIN_APPROX_SIMPLE);
+            //Copy the perspective transformed image
+            Mat erosionDrawing = imageWithModelFitting.clone();
+            //Draw the filled contour on the second copy of the perspective transformed image
+            Imgproc.drawContours(erosionDrawing, erosionContours, -1, new Scalar(0, 0, 255), -1);
+            //Blend the two images, which creates a transparent look of the drawn contour
+            Core.addWeighted(erosionDrawing, 0.3, imageWithModelFitting, 1 - 0.3, 0.0, imageWithModelFitting);
+            //Show the image with the model fitting
+            setImage(imageWithModelFitting);
         } catch (SVGParseException | IOException e) {
             e.printStackTrace();
         }

@@ -51,7 +51,7 @@ import java.util.List;
 public class FindContoursActivity extends AppCompatActivity {
 
     private final String TAG = "FindContoursActivity";
-    private Mat canny, blur, morphology, gray, filledContours, warpedPerspective, bilateral, eroded;
+    private Mat canny, blur, morphology, gray, filledContours, imageWithGuidingSizes, bilateral, eroded, warpedPerspective, imageWithModelFitting;
     int markerSize = 250;
     Bitmap inputPicture;
     String svgFileString;
@@ -101,6 +101,7 @@ public class FindContoursActivity extends AppCompatActivity {
         //Finding contours on warped picture
         //Each step has its own mat so we can display them
         //Some of these actions/procedures are destructive as well, which is why some are cloned
+        imageWithGuidingSizes = warpedPerspective.clone();
         canny = new Mat();
         blur = new Mat();
         morphology = new Mat();
@@ -109,7 +110,7 @@ public class FindContoursActivity extends AppCompatActivity {
         eroded = new Mat();
 
         Imgproc.cvtColor(warpedPerspective, gray, Imgproc.COLOR_RGB2GRAY); //Convert image to grayscale
-//        Imgproc.blur(warpedPerspective.clone(), canny, new Size(5, 5)); //Blur image
+//        Imgproc.blur(imageWithGuidingSizes.clone(), canny, new Size(5, 5)); //Blur image
         Imgproc.GaussianBlur(gray, blur, new Size(3, 3), 0); //Gaussian blur image
 
         bilateral = new Mat(gray.rows(), gray.cols(), CvType.CV_8UC1);
@@ -225,12 +226,12 @@ public class FindContoursActivity extends AppCompatActivity {
             Rect rect = Imgproc.boundingRect(points);
 
             //Draw bounding boxes
-            Imgproc.rectangle(warpedPerspective, new Point(rect.x, rect.y), new Point(rect.x + rect.width, rect.y + rect.height), new Scalar(255, 0, 0), 3);
+            Imgproc.rectangle(imageWithGuidingSizes, new Point(rect.x, rect.y), new Point(rect.x + rect.width, rect.y + rect.height), new Scalar(255, 0, 0), 3);
             //Calculate size of bounding box and draw it
             float rectWidth = roundFloat(rect.width * scale, 0);
             float rectHeight = roundFloat(rect.height * scale, 0);
             Log.i("NUMBERS", "scale: " + scale + ". Calculated rect size: " + rectWidth + "x" + rectHeight);
-            Imgproc.putText(warpedPerspective, rectWidth + "x" + rectHeight, new Point(rect.x + rect.width / 3, rect.y + rect.height), Core.FONT_HERSHEY_PLAIN, 3, new Scalar(255, 0, 0), 3);
+            Imgproc.putText(imageWithGuidingSizes, rectWidth + "x" + rectHeight, new Point(rect.x + rect.width / 3, rect.y + rect.height), Core.FONT_HERSHEY_PLAIN, 3, new Scalar(255, 0, 0), 3);
         }
 
         //Doing polygons on scrap material doesn't seem to work well
@@ -266,9 +267,9 @@ public class FindContoursActivity extends AppCompatActivity {
         svgFileString = svgFileString.replace("#viewBox", "0 0 " + maxX + " " + maxY); //Set viewBox
         Log.i("svgFileString", svgFileString);
 
-        Imgproc.drawContours(warpedPerspective, contours2, -1, new Scalar(0, 255, 0), 1/*, Imgproc.LINE_4, hierarchy, 0, new Point(0,0)*/);
+        Imgproc.drawContours(imageWithGuidingSizes, contours2, -1, new Scalar(0, 255, 0), 1/*, Imgproc.LINE_4, hierarchy, 0, new Point(0,0)*/);
 
-        setImage(warpedPerspective);
+        setImage(imageWithGuidingSizes);
 
         filledContours = morphology.clone();
         Core.bitwise_not(filledContours, filledContours); //Invert the picture
@@ -307,6 +308,8 @@ public class FindContoursActivity extends AppCompatActivity {
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         menu.addSubMenu("Warped perspective");
+        menu.addSubMenu("Guiding sizes");
+        menu.addSubMenu("Model fitting");
         menu.addSubMenu("Canny");
         menu.addSubMenu("Gray");
         menu.addSubMenu("Morphology");
@@ -326,6 +329,18 @@ public class FindContoursActivity extends AppCompatActivity {
             case "Warped perspective":
                 Toast.makeText(this, "warped perspective", Toast.LENGTH_SHORT).show();
                 setImage(warpedPerspective);
+                break;
+            case "Guiding sizes":
+                Toast.makeText(this, "guiding sizes", Toast.LENGTH_SHORT).show();
+                setImage(imageWithGuidingSizes);
+                break;
+            case "Model fitting":
+                Toast.makeText(this, "model fitting", Toast.LENGTH_SHORT).show();
+                if (imageWithModelFitting == null) {
+                    Toast.makeText(this, "No model has been selected.", Toast.LENGTH_SHORT).show();
+                    break;
+                }
+                setImage(imageWithModelFitting);
                 break;
             case "Canny":
                 Toast.makeText(this, "canny", Toast.LENGTH_SHORT).show();
@@ -431,7 +446,7 @@ public class FindContoursActivity extends AppCompatActivity {
     }
 
     public void saveInternal(String filename, String contents) {
-        InternalStorageOperations.save(this, filename, contents, gray, bilateral, canny, morphology, filledContours, warpedPerspective);
+        InternalStorageOperations.save(this, filename, contents, gray, bilateral, canny, morphology, filledContours, imageWithGuidingSizes);
         try {
             InternalStorageOperations.load(this, filename);
         } catch (IOException | ClassNotFoundException e) {
@@ -501,6 +516,20 @@ public class FindContoursActivity extends AppCompatActivity {
             if (Core.countNonZero(eroded) < 1) { //Check if anything is left after eroding, if there is, the SVG fits
                 Toast.makeText(this, "Your model does not fit.", Toast.LENGTH_SHORT).show();
             } else Toast.makeText(this, "Your model fits!", Toast.LENGTH_SHORT).show();
+
+            //Constructing an image to show the user where the origin/centerpoint of their model can be placed to fit the model
+            //Copy perspective transformed image
+            imageWithModelFitting = warpedPerspective.clone();
+            //Finding a contour to draw from the erosion image
+            List<MatOfPoint> erosionContours = new ArrayList<>();
+            Imgproc.findContours(eroded, erosionContours, new Mat(), Imgproc.RETR_LIST, Imgproc.CHAIN_APPROX_SIMPLE);
+            //Copy the perspective transformed image
+            Mat erosionDrawing = imageWithModelFitting.clone();
+            //Draw the filled contour on the second copy of the perspective transformed image
+            Imgproc.drawContours(erosionDrawing, erosionContours, -1, new Scalar(0, 0, 255), -1);
+            //Blend the two images, which creates a transparent look of the drawn contour
+            Core.addWeighted(erosionDrawing, 0.3, imageWithModelFitting, 1 - 0.3, 0.0, imageWithModelFitting);
+
         } catch (SVGParseException | IOException e) {
             e.printStackTrace();
         }

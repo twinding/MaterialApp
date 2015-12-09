@@ -1,11 +1,16 @@
 package dk.tw.opencvtest;
 
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.media.MediaScannerConnection;
+import android.os.Environment;
 
+import org.opencv.android.Utils;
 import org.opencv.core.Mat;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -15,8 +20,18 @@ import java.io.Serializable;
 import java.util.HashMap;
 
 public class InternalStorageOperations {
+    public static boolean saveExternal = false;
 
     public static void save(Context context, String filename, String contents, Mat gray, Mat bilateral, Mat canny, Mat morphology, Mat filledContours, Mat warpedPerspective) {
+        if (saveExternal) {
+            saveExternal(gray, "gray.png", context);
+            saveExternal(bilateral, "bilateral.png", context);
+            saveExternal(canny, "canny.png", context);
+            saveExternal(bilateral, "bilateral.png", context);
+            saveExternal(morphology, "morphology.png", context);
+            saveExternal(filledContours, "filledContours.png", context);
+            saveExternal(warpedPerspective, "warpedPerspective.png", context);
+        }
 
         HashMap<String, SerializableMat> matHashMap = new HashMap<>();
         matHashMap.put("gray", new SerializableMat(gray));
@@ -139,5 +154,23 @@ public class InternalStorageOperations {
         public int getType() {
             return type;
         }
+    }
+
+    public static void saveExternal(Mat mat, String filename, Context context) {
+        Bitmap bmp = Bitmap.createBitmap(mat.cols(), mat.rows(), Bitmap.Config.ARGB_8888);
+        Utils.matToBitmap(mat, bmp);
+
+        File externalDirectory = new File(Environment.getExternalStorageDirectory() + "/OpenCvOut");
+        if (!externalDirectory.exists()) externalDirectory.mkdirs();
+
+        File destination = new File(externalDirectory, filename);
+        try {
+            FileOutputStream out = new FileOutputStream(destination);
+            bmp.compress(Bitmap.CompressFormat.PNG, 100, out);
+            out.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        MediaScannerConnection.scanFile(context, new String[]{destination.getAbsolutePath()}, null, null);
     }
 }

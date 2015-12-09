@@ -497,6 +497,7 @@ public class FindContoursActivity extends AppCompatActivity {
             //Could be made more advanced in following the path of the SVG more closely for better fitting
             Mat structuringElement2 = Imgproc.getStructuringElement(Imgproc.CV_SHAPE_RECT, new Size(geometryWidth, geometryHeight));
             Imgproc.erode(filledContours, eroded, structuringElement2); //Erosion using the structuring element
+            if (InternalStorageOperations.saveExternal) InternalStorageOperations.saveExternal(eroded, "erosion.png", this);
             if (Core.countNonZero(eroded) < 1) { //Check if anything is left after eroding, if there is, the SVG fits
                 Toast.makeText(this, "Your model does not fit.", Toast.LENGTH_SHORT).show();
             } else Toast.makeText(this, "Your model fits!", Toast.LENGTH_SHORT).show();

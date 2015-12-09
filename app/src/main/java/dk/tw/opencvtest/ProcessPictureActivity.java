@@ -118,6 +118,9 @@ public class ProcessPictureActivity extends AppCompatActivity {
 //        Mat inputOriginal = Imgcodecs.imread(Environment.getExternalStorageDirectory().getAbsolutePath() + "/marker1scaled.jpg", Imgcodecs.CV_LOAD_IMAGE_GRAYSCALE);
 //        Mat inputOriginal = Imgcodecs.imread(Environment.getExternalStorageDirectory().getAbsolutePath() + "/marker3scaled.jpg");
         Mat inputOriginal = Imgcodecs.imdecode(new MatOfByte(pictureData), Imgcodecs.IMREAD_UNCHANGED);
+
+        if (InternalStorageOperations.saveExternal) InternalStorageOperations.saveExternal(inputOriginal, "beforeProcessing.png", this);
+
         Imgproc.cvtColor(inputOriginal, inputOriginal, Imgproc.COLOR_BGR2RGB); //Convert picture to RGB as it's loaded as BGR
 
         Mat input = new Mat();
@@ -126,6 +129,8 @@ public class ProcessPictureActivity extends AppCompatActivity {
 
         Mat output = new Mat();
         Imgproc.threshold(input, output, 100/*magic number*/, 255, Imgproc.THRESH_BINARY); //Thresholding on image
+
+        if (InternalStorageOperations.saveExternal) InternalStorageOperations.saveExternal(output, "threshold.png", this);
 
         ArrayList<MatOfPoint> contours = new ArrayList<>();
         Imgproc.findContours(output.clone(), contours, new Mat(), Imgproc.RETR_LIST, Imgproc.CHAIN_APPROX_NONE); //Find contours on image
@@ -334,6 +339,8 @@ public class ProcessPictureActivity extends AppCompatActivity {
         //TODO Crop at this point? Should we draw a rectangle to show how well the warp succeeded?
 
         setImage(warpedPerspective);
+
+        if (InternalStorageOperations.saveExternal) InternalStorageOperations.saveExternal(warpedPerspective, "warpedNoText.png", this);
 
 
 

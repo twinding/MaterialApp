@@ -7,7 +7,7 @@
 
 
 
-    <Button
+    <!--<Button
         android:id="@+id/drawingButton"
         android:text="Start drawing"
         android:onClick="startDrawingActivity"
@@ -20,18 +20,17 @@
         android:layout_below="@+id/drawingButton"
         android:onClick="warpStoredImage"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content" />
+        android:layout_height="wrap_content" />-->
 
     <Button
         android:id="@+id/takePictureButton"
-        android:text="Take picture"
-        android:layout_below="@id/warpStoredImageButton"
+        android:text="Scan material"
         android:onClick="takePicture"
         android:layout_width="match_parent"
         android:layout_height="wrap_content" />
 
     <Button
-        android:text="Load internal"
+        android:text="Materials and CAD files"
         android:layout_below="@id/takePictureButton"
         android:onClick="loadFromInternal"
         android:layout_width="match_parent"

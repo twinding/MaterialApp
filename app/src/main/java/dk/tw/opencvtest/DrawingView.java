@@ -460,7 +460,10 @@ public class DrawingView extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     public String offsetPoints(float x, float y, String points) {
+        Log.i(TAG, "offsetPoints before replace: " + points);
         points = points.replace("\n", "").replace("\r", "").replace("\t", " ").replace("  ", " ");
+        points = points.replace("  ", " ");
+        Log.i(TAG, "offsetPoints after replace: " + points);
         String[] coordinateSets = points.split(" ");
         float[] xCoords = new float[coordinateSets.length];
         float[] yCoords = new float[coordinateSets.length];

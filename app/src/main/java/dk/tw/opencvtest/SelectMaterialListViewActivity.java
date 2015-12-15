@@ -36,14 +36,16 @@ public class SelectMaterialListViewActivity extends AppCompatActivity {
         //Check if list is null (empty), and return empty String array if so
         String[] cutReadySvgs = cutReadySvgsDir.list() == null ? new String[]{} : cutReadySvgsDir.list();
         //Set up adapter for switching the list view to showing the saved cuts
-        cutReadySvgsAdapter = new ArrayAdapter<>(this, R.layout.list_item_custom, android.R.id.text1, cutReadySvgs);
+//        cutReadySvgsAdapter = new ArrayAdapter<>(this, R.layout.list_item_custom, android.R.id.text1, cutReadySvgs);
+        cutReadySvgsAdapter = new CustomListAdapter(this, cutReadySvgs, CustomListAdapter.Type.CUTS);
 
         try {
             //Get list of saved geometry SVGs, they're stored in the assets folder, so it is slightly different from the other saved items
 //            String[] geometryList = getAssets().list("SVG");
             String[] geometryList = getAssets().list("SVG") == null ? new String[]{} : getAssets().list("SVG");
             //Set up adapter for switching the view to showing geometries
-            geometriesAdapter = new ArrayAdapter<>(this, R.layout.list_item_custom, android.R.id.text1, geometryList);
+//            geometriesAdapter = new ArrayAdapter<>(this, R.layout.list_item_custom, android.R.id.text1, geometryList);
+            geometriesAdapter = new CustomListAdapter(this, geometryList, CustomListAdapter.Type.GEOMETRIES);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -56,7 +58,8 @@ public class SelectMaterialListViewActivity extends AppCompatActivity {
         //Check if list is null (empty), and return empty String array if so
         String[] openCvData = opencvdataDir.list() == null ? new String[]{} : opencvdataDir.list();
         //Set up the initial adapter of the list view, the saved materials
-        openCvDataAdapter = new ArrayAdapter<>(this, R.layout.list_item_custom, android.R.id.text1, openCvData);
+//        openCvDataAdapter = new ArrayAdapter<>(this, R.layout.list_item_custom, android.R.id.text1, openCvData);
+        openCvDataAdapter = new CustomListAdapter(this, openCvData, CustomListAdapter.Type.MATERIALS);
         listView.setAdapter(openCvDataAdapter);
         //Set the first item in the list to be selected
         listView.setItemChecked(0, true);

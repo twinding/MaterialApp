@@ -275,7 +275,25 @@ public class FindContoursActivity extends AppCompatActivity {
         filledContours = morphology.clone();
         Core.bitwise_not(filledContours, filledContours); //Invert the picture
         //Draw contours, -1 thickness is passed as that fills out the contour
-        Imgproc.drawContours(filledContours, contours2, -1, new Scalar(0, 255, 0), -1);
+//        Imgproc.drawContours(filledContours, contours2, -1, new Scalar(0, 255, 0), -1);
+
+        double area = 0;
+        MatOfPoint toDraw = contours2.get(0);
+        //Might be a bit hacky, finding the largest contour, coloring it in, and then drawing all other contours
+        int contourIndex = 0;
+        for (int i = 0; i < contours2.size(); i++) {
+            MatOfPoint mop = contours2.get(i);
+            if (Imgproc.contourArea(mop) > area) {
+                area = Imgproc.contourArea(mop);
+                toDraw = mop;
+                contourIndex = i;
+            }
+        }
+        contours2.remove(contourIndex);
+        List<MatOfPoint> toDrawList = new ArrayList<>();
+        toDrawList.add(toDraw);
+        Imgproc.drawContours(filledContours, toDrawList, -1, new Scalar(0, 255, 0), -1);
+        Imgproc.drawContours(filledContours, contours2, -1, new Scalar(255, 255, 255), -1);
         Core.bitwise_not(filledContours, filledContours); //Invert again for erosion
 
         //Trying to fill the outermost contour so we could apply erosion to it, need to somehow

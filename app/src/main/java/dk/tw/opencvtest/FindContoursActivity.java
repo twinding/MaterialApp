@@ -462,8 +462,13 @@ public class FindContoursActivity extends AppCompatActivity {
 //                    saveFile(input, svgFileString);
                     saveInternal(input, svgFileString);
                     Toast.makeText(FindContoursActivity.this, "Saved!", Toast.LENGTH_SHORT).show();
-                    //Return to main menu
+                    /*//Return to main menu
                     Intent intent = new Intent(FindContoursActivity.this, MainActivity.class);
+                    intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                    startActivity(intent);*/
+                    Intent intent = new Intent(FindContoursActivity.this, LoadFromInternalStorageActivity.class);
+                    intent.putExtra("fileToLoad", input);
+                    intent.putExtra("openedFromSave", true);
                     intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
                     startActivity(intent);
                 }

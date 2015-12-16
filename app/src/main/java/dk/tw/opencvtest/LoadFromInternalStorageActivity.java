@@ -83,6 +83,15 @@ public class LoadFromInternalStorageActivity extends AppCompatActivity {
         }
     }
 
+    @Override
+    public void onBackPressed() {
+        if (getIntent().getBooleanExtra("openedFromSave", false)) {
+            Intent intent = new Intent(this, MainActivity.class);
+            intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            startActivity(intent);
+        } else super.onBackPressed();
+    }
+
     public void setImage(Mat image) {
         Bitmap imageMatched = Bitmap.createBitmap(image.cols(), image.rows(), Bitmap.Config.RGB_565);//need to save bitmap
         Utils.matToBitmap(image, imageMatched);
